@@ -1,0 +1,15 @@
+services:
+  campmate:
+    build: .
+    container_name: campmate
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - campmate_data:/data
+    environment:
+      - DATA_DIR=/data
+      - NODE_ENV=production
+
+volumes:
+  campmate_data:

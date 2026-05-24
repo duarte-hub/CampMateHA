@@ -1,0 +1,19 @@
+name: CampMate
+version: "1.0.0"
+slug: campmate
+description: "Camping trip planner — turn a rough idea into a complete trip plan with itinerary, gear list, meals, and budget."
+url: "https://github.com/14cassowary/CampMateHA"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+boot: auto
+ingress: true
+ingress_port: 3000
+panel_icon: mdi:tent
+panel_title: CampMate
+map:
+  - data:rw
+options: {}
+schema: {}

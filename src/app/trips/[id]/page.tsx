@@ -1,0 +1,399 @@
+'use client'
+
+import { useEffect, useState, use } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import type { TripWithDetails, PackingItem, BudgetItem } from '@/lib/types'
+
+type Tab = 'overview' | 'itinerary' | 'packing' | 'meals' | 'budget'
+
+const SEVERITY_STYLE = {
+  critical: 'bg-red-50 border-red-200 text-red-800',
+  warning: 'bg-amber-50 border-amber-200 text-amber-800',
+  info: 'bg-blue-50 border-blue-200 text-blue-800',
+}
+const SEVERITY_ICON = { critical: '🚨', warning: '⚠️', info: 'ℹ️' }
+
+export default function TripPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const router = useRouter()
+  const [trip, setTrip] = useState<TripWithDetails | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<Tab>('overview')
+  const [newItem, setNewItem] = useState('')
+  const [newCategory, setNewCategory] = useState('Custom')
+  const [deleting, setDeleting] = useState(false)
+
+  async function load() {
+    const res = await fetch(`/api/trips/${id}`)
+    if (!res.ok) { router.push('/'); return }
+    setTrip(await res.json())
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [id])
+
+  async function togglePacking(item: PackingItem) {
+    await fetch(`/api/trips/${id}/packing/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checked: !item.checked }),
+    })
+    setTrip(t => t ? {
+      ...t,
+      packingItems: t.packingItems.map(i => i.id === item.id ? { ...i, checked: !i.checked } : i)
+    } : t)
+  }
+
+  async function addPackingItem() {
+    if (!newItem.trim()) return
+    const res = await fetch(`/api/trips/${id}/packing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newItem.trim(), category: newCategory, quantity: 1 }),
+    })
+    const item = await res.json()
+    setTrip(t => t ? { ...t, packingItems: [...t.packingItems, item] } : t)
+    setNewItem('')
+  }
+
+  async function deleteTrip() {
+    if (!confirm('Delete this trip? This cannot be undone.')) return
+    setDeleting(true)
+    await fetch(`/api/trips/${id}`, { method: 'DELETE' })
+    router.push('/')
+  }
+
+  async function updateBudget(itemId: string, field: 'estimatedCost' | 'actualCost', value: number) {
+    await fetch(`/api/trips/${id}/budget/${itemId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    })
+    setTrip(t => t ? {
+      ...t,
+      budgetItems: t.budgetItems.map(b => b.id === itemId ? { ...b, [field]: value } : b)
+    } : t)
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-48">
+      <div className="text-stone-400 text-sm">Loading trip...</div>
+    </div>
+  )
+  if (!trip) return null
+
+  const nights = Math.round((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / 86400000)
+  const checkedItems = trip.packingItems.filter(i => i.checked).length
+  const totalItems = trip.packingItems.length
+  const packingPct = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Link href="/" className="text-stone-400 hover:text-stone-600 text-sm">← Trips</Link>
+          </div>
+          <h1 className="text-2xl font-bold text-stone-900">{trip.title || trip.destination}</h1>
+          <p className="text-stone-500 text-sm mt-0.5">
+            📍 {trip.destination} · {fmtDate(trip.startDate)} – {fmtDate(trip.endDate)} · {nights} nights
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href={`/trips/${id}/share`} className="btn-secondary text-xs">
+            Share
+          </Link>
+          <button onClick={deleteTrip} disabled={deleting} className="text-xs text-red-500 hover:text-red-700 px-2 py-1">
+            Delete
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-stone-200 gap-4 overflow-x-auto">
+        {(['overview', 'itinerary', 'packing', 'meals', 'budget'] as Tab[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`pb-2 text-sm font-medium whitespace-nowrap transition-all ${tab === t ? 'tab-active' : 'tab-inactive'}`}
+          >
+            {t === 'overview' && '📋 Overview'}
+            {t === 'itinerary' && `📅 Itinerary`}
+            {t === 'packing' && `🎒 Packing ${packingPct > 0 ? `(${packingPct}%)` : ''}`}
+            {t === 'meals' && '🍳 Meals'}
+            {t === 'budget' && '💰 Budget'}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {tab === 'overview' && (
+        <div className="space-y-4">
+          {/* Stats strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard icon="👥" label="People" value={`${trip.adults + trip.kids}`} sub={`${trip.adults}A ${trip.kids}K`} />
+            <StatCard icon="🌙" label="Nights" value={`${nights}`} sub="away" />
+            <StatCard icon="🎒" label="Gear items" value={`${totalItems}`} sub={`${checkedItems} packed`} />
+            <StatCard icon="💰" label="Budget est." value={`$${trip.budgetItems.reduce((s, b) => s + b.estimatedCost, 0)}`} sub="total" />
+          </div>
+
+          {/* Readiness */}
+          <div className="card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-stone-800">Packing readiness</h3>
+              <span className="text-sm font-bold text-forest-700">{packingPct}%</span>
+            </div>
+            <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+              <div className="h-full bg-forest-500 rounded-full transition-all" style={{ width: `${packingPct}%` }} />
+            </div>
+            {packingPct === 100 && (
+              <p className="text-sm text-forest-700 font-medium mt-2">✅ All gear packed — you&apos;re ready!</p>
+            )}
+          </div>
+
+          {/* Trip details */}
+          <div className="card p-4 space-y-2 text-sm">
+            <h3 className="font-semibold text-stone-800 mb-3">Trip details</h3>
+            <Detail label="Camping style" value={trip.campingStyle.replace('_', ' ')} />
+            <Detail label="Vehicle" value={trip.vehicleType.toUpperCase()} />
+            <Detail label="Experience" value={trip.experienceLevel} />
+            <Detail label="Activities" value={trip.activities.join(', ') || 'None'} />
+            {trip.notes && <Detail label="Notes" value={trip.notes} />}
+          </div>
+
+          {/* Reminders */}
+          {trip.reminders.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-stone-800">Reminders & warnings</h3>
+              {trip.reminders.sort((a, b) => {
+                const order = { critical: 0, warning: 1, info: 2 }
+                return order[a.severity] - order[b.severity]
+              }).map(r => (
+                <div key={r.id} className={`rounded-lg border p-3 text-sm flex gap-2 ${SEVERITY_STYLE[r.severity]}`}>
+                  <span>{SEVERITY_ICON[r.severity]}</span>
+                  <span>{r.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Itinerary Tab */}
+      {tab === 'itinerary' && (
+        <div className="space-y-3">
+          {trip.itinerary.sort((a, b) => a.dayNumber - b.dayNumber).map(day => (
+            <div key={day.id} className="card p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="shrink-0 w-8 h-8 rounded-full bg-forest-700 text-white flex items-center justify-center text-sm font-bold">
+                  {day.dayNumber}
+                </span>
+                <div>
+                  <p className="font-semibold text-stone-800">{day.summary}</p>
+                  <p className="text-xs text-stone-500">{fmtDate(day.date)}</p>
+                </div>
+              </div>
+              <ul className="space-y-1 ml-11">
+                {day.activities.map((a, i) => (
+                  <li key={i} className="text-sm text-stone-600 flex gap-2">
+                    <span className="text-stone-300 mt-0.5">•</span>
+                    {a}
+                  </li>
+                ))}
+              </ul>
+              {day.notes && <p className="ml-11 mt-2 text-xs text-stone-400 italic">{day.notes}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Packing Tab */}
+      {tab === 'packing' && (
+        <div className="space-y-4">
+          {/* Add custom item */}
+          <div className="card p-4 flex gap-2">
+            <input
+              className="input flex-1 text-sm"
+              placeholder="Add a custom item..."
+              value={newItem}
+              onChange={e => setNewItem(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addPackingItem()}
+            />
+            <input
+              className="input w-28 text-sm"
+              placeholder="Category"
+              value={newCategory}
+              onChange={e => setNewCategory(e.target.value)}
+            />
+            <button onClick={addPackingItem} className="btn-primary text-sm px-3">Add</button>
+          </div>
+
+          {/* Progress */}
+          <div className="text-sm text-stone-600 flex items-center gap-2">
+            <span className="font-semibold text-forest-700">{checkedItems}/{totalItems}</span>
+            <span>items packed</span>
+            <div className="flex-1 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+              <div className="h-full bg-forest-500 rounded-full" style={{ width: `${packingPct}%` }} />
+            </div>
+          </div>
+
+          {/* Items by category */}
+          {Object.entries(
+            trip.packingItems.reduce<Record<string, PackingItem[]>>((acc, item) => {
+              ;(acc[item.category] ??= []).push(item)
+              return acc
+            }, {})
+          ).sort(([a], [b]) => a.localeCompare(b)).map(([cat, items]) => (
+            <div key={cat} className="card overflow-hidden">
+              <div className="px-4 py-2 bg-stone-50 border-b border-stone-100 flex items-center justify-between">
+                <h4 className="font-semibold text-sm text-stone-700">{cat}</h4>
+                <span className="text-xs text-stone-400">{items.filter(i => i.checked).length}/{items.length}</span>
+              </div>
+              <div className="divide-y divide-stone-50">
+                {items.map(item => (
+                  <label key={item.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-stone-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
+                      onChange={() => togglePacking(item)}
+                      className="rounded border-stone-300 text-forest-600 focus:ring-forest-500"
+                    />
+                    <span className={`flex-1 text-sm ${item.checked ? 'line-through text-stone-400' : 'text-stone-700'}`}>
+                      {item.name}
+                      {item.quantity > 1 && <span className="text-stone-400 ml-1">×{item.quantity}</span>}
+                    </span>
+                    {item.isCustom && <span className="text-xs text-stone-300">custom</span>}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Meals Tab */}
+      {tab === 'meals' && (
+        <div className="space-y-4">
+          {Object.entries(
+            trip.meals.reduce<Record<string, typeof trip.meals>>((acc, meal) => {
+              ;(acc[meal.date] ??= []).push(meal)
+              return acc
+            }, {})
+          ).sort(([a], [b]) => a.localeCompare(b)).map(([date, meals]) => (
+            <div key={date} className="card overflow-hidden">
+              <div className="px-4 py-2 bg-stone-50 border-b border-stone-100">
+                <h4 className="font-semibold text-sm text-stone-700">{fmtDate(date)}</h4>
+              </div>
+              <div className="divide-y divide-stone-50">
+                {meals.sort((a, b) => {
+                  const order = { breakfast: 0, lunch: 1, dinner: 2, snack: 3 }
+                  return order[a.mealType] - order[b.mealType]
+                }).map(meal => (
+                  <div key={meal.id} className="flex gap-3 px-4 py-2.5">
+                    <span className="text-xs font-medium uppercase tracking-wide text-stone-400 w-16 pt-0.5 shrink-0">
+                      {meal.mealType}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-stone-800">{meal.title}</p>
+                      {meal.notes && <p className="text-xs text-stone-400 mt-0.5">{meal.notes}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Budget Tab */}
+      {tab === 'budget' && (
+        <div className="space-y-4">
+          {/* Total */}
+          <div className="card p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-stone-500">Estimated total</p>
+              <p className="text-2xl font-bold text-stone-900">
+                ${trip.budgetItems.reduce((s, b) => s + b.estimatedCost, 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-stone-400 mt-0.5">
+                ≈ ${Math.round(trip.budgetItems.reduce((s, b) => s + b.estimatedCost, 0) / (trip.adults + trip.kids))} per person
+              </p>
+            </div>
+            {trip.budgetItems.some(b => b.actualCost !== undefined) && (
+              <div className="text-right">
+                <p className="text-sm text-stone-500">Actual total</p>
+                <p className="text-xl font-bold text-forest-700">
+                  ${trip.budgetItems.reduce((s, b) => s + (b.actualCost ?? 0), 0).toLocaleString()}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Items by category */}
+          {Object.entries(
+            trip.budgetItems.reduce<Record<string, BudgetItem[]>>((acc, item) => {
+              ;(acc[item.category] ??= []).push(item)
+              return acc
+            }, {})
+          ).map(([cat, items]) => (
+            <div key={cat} className="card overflow-hidden">
+              <div className="px-4 py-2 bg-stone-50 border-b border-stone-100">
+                <h4 className="font-semibold text-sm text-stone-700">{cat}</h4>
+              </div>
+              <div className="divide-y divide-stone-50">
+                {items.map(item => (
+                  <div key={item.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="flex-1 text-sm text-stone-700">{item.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-stone-400">Est.</span>
+                      <input
+                        type="number"
+                        className="w-20 rounded border border-stone-200 text-sm px-2 py-1 text-right focus:border-forest-500 focus:outline-none"
+                        value={item.estimatedCost}
+                        onChange={e => updateBudget(item.id, 'estimatedCost', parseFloat(e.target.value) || 0)}
+                      />
+                      <span className="text-xs text-stone-400">Act.</span>
+                      <input
+                        type="number"
+                        className="w-20 rounded border border-stone-200 text-sm px-2 py-1 text-right focus:border-forest-500 focus:outline-none"
+                        placeholder="—"
+                        value={item.actualCost ?? ''}
+                        onChange={e => updateBudget(item.id, 'actualCost', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <p className="text-xs text-stone-400 text-center">Tap Est. or Act. fields to edit amounts</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StatCard({ icon, label, value, sub }: { icon: string; label: string; value: string; sub: string }) {
+  return (
+    <div className="card p-3 text-center">
+      <div className="text-xl mb-0.5">{icon}</div>
+      <div className="text-lg font-bold text-stone-900">{value}</div>
+      <div className="text-xs text-stone-500">{sub}</div>
+    </div>
+  )
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <span className="text-stone-400 w-28 shrink-0">{label}</span>
+      <span className="text-stone-800 font-medium capitalize">{value}</span>
+    </div>
+  )
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+}
