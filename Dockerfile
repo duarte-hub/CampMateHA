@@ -27,6 +27,12 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
+LABEL org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.title="CampMate" \
+      org.opencontainers.image.description="Camping trip planner for Home Assistant / Unraid" \
+      net.unraid.docker.webui="http://[IP]:[PORT:3000]/" \
+      net.unraid.docker.icon="https://raw.githubusercontent.com/google/material-design-icons/master/png/maps/terrain/materialicons/48dp/2x/baseline_terrain_black_48dp.png"
+
 EXPOSE 3000
 
 VOLUME ["/data"]
