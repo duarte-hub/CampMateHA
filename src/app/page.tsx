@@ -1,5 +1,7 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { readDb } from '@/lib/db'
 import { nightsBetween } from '@/lib/rules'
 import type { Trip } from '@/lib/types'
 
@@ -8,13 +10,34 @@ function styleLabel(s: Trip['campingStyle']) {
 }
 
 export default function HomePage() {
-  const db = readDb()
-  const trips = [...db.trips].sort(
+  const [trips, setTrips] = useState<Trip[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    function refetch() {
+      fetch('/api/trips')
+        .then(r => r.json())
+        .then(data => { setTrips(data); setLoading(false) })
+        .catch(() => setLoading(false))
+    }
+
+    refetch()
+
+    // Re-fetch when the user navigates back (bfcache restore) or switches tabs
+    window.addEventListener('focus', refetch)
+    window.addEventListener('pageshow', refetch)
+
+    return () => {
+      window.removeEventListener('focus', refetch)
+      window.removeEventListener('pageshow', refetch)
+    }
+  }, [])
+
+  const sorted = [...trips].sort(
     (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
   )
-
-  const upcoming = trips.filter(t => new Date(t.endDate) >= new Date())
-  const past = trips.filter(t => new Date(t.endDate) < new Date())
+  const upcoming = sorted.filter(t => new Date(t.endDate) >= new Date())
+  const past     = sorted.filter(t => new Date(t.endDate) <  new Date())
 
   return (
     <div className="space-y-8">
@@ -29,8 +52,11 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* Upcoming trips */}
-      {upcoming.length > 0 && (
+      {loading && (
+        <div className="text-center text-stone-400 text-sm py-8">Loading trips…</div>
+      )}
+
+      {!loading && upcoming.length > 0 && (
         <section>
           <h2 className="text-lg font-bold text-stone-800 mb-3">Upcoming trips</h2>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -39,8 +65,7 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Past trips */}
-      {past.length > 0 && (
+      {!loading && past.length > 0 && (
         <section>
           <h2 className="text-lg font-bold text-stone-500 mb-3">Past trips</h2>
           <div className="grid gap-3 sm:grid-cols-2 opacity-70">
@@ -49,15 +74,12 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Empty state */}
-      {trips.length === 0 && (
+      {!loading && trips.length === 0 && (
         <div className="card p-10 text-center">
           <div className="text-5xl mb-3">🗺️</div>
           <h2 className="text-lg font-semibold text-stone-700 mb-1">No trips yet</h2>
           <p className="text-stone-500 text-sm mb-5">Create your first trip to get a complete camping plan.</p>
-          <Link href="/trips/new" className="btn-primary">
-            Plan my first trip
-          </Link>
+          <Link href="/trips/new" className="btn-primary">Plan my first trip</Link>
         </div>
       )}
     </div>
@@ -66,14 +88,14 @@ export default function HomePage() {
 
 function TripCard({ trip }: { trip: Trip }) {
   const nights = nightsBetween(trip.startDate, trip.endDate)
-  const start = new Date(trip.startDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
-  const end = new Date(trip.endDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+  const start  = new Date(trip.startDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
+  const end    = new Date(trip.endDate).toLocaleDateString('en-AU',   { day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
     <Link href={`/trips/${trip.id}`} className="card p-4 hover:border-forest-400 hover:shadow-md transition-all group block">
       <div className="flex items-start justify-between mb-2">
         <h3 className="font-bold text-stone-900 group-hover:text-forest-700 transition-colors">{trip.title}</h3>
-        <span className="text-xs text-stone-400 bg-stone-100 rounded px-2 py-0.5">{nights}n</span>
+        <span className="text-xs text-stone-400 bg-stone-100 rounded px-2 py-0.5">{nights === 0 ? 'Day' : `${nights}n`}</span>
       </div>
       <p className="text-sm text-stone-600 mb-3">📍 {trip.destination}</p>
       <div className="flex flex-wrap gap-2 text-xs text-stone-500">
@@ -84,7 +106,7 @@ function TripCard({ trip }: { trip: Trip }) {
       {trip.activities.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {trip.activities.slice(0, 4).map(a => (
-            <span key={a} className="text-xs bg-forest-50 text-forest-700 rounded px-2 py-0.5 border border-forest-100">
+            <span key={a} className="text-xs bg-forest-50 text-forest-700 rounded px-2 py-0.5 border border-forest-100 capitalize">
               {a}
             </span>
           ))}

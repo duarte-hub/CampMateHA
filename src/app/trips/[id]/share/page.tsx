@@ -3,6 +3,8 @@ import { nightsBetween } from '@/lib/rules'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SharePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const db = readDb()
@@ -45,15 +47,17 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
           <h1 className="text-3xl font-bold text-stone-900">{trip.title || trip.destination}</h1>
           <p className="text-stone-500 mt-1">
             📍 {trip.destination} &nbsp;·&nbsp;
-            {fmtDate(trip.startDate)} – {fmtDate(trip.endDate)} &nbsp;·&nbsp;
-            {nights} nights
+            {nights === 0
+              ? <>{fmtDate(trip.startDate)} &nbsp;·&nbsp; Day trip</>
+              : <>{fmtDate(trip.startDate)} – {fmtDate(trip.endDate)} &nbsp;·&nbsp; {nights} nights</>
+            }
           </p>
         </div>
 
         {/* Key facts */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Fact icon="👥" label="People" value={`${trip.adults + trip.kids}`} />
-          <Fact icon="🌙" label="Nights" value={`${nights}`} />
+          <Fact icon="🌙" label="Nights" value={nights === 0 ? 'Day trip' : `${nights}`} />
           <Fact icon="🏕️" label="Style" value={trip.campingStyle.replace('_', ' ')} />
           <Fact icon="💰" label="Budget" value={`~$${totalBudget.toLocaleString()}`} />
         </div>

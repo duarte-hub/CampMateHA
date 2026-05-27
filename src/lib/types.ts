@@ -50,6 +50,19 @@ export interface Meal {
   mealType: MealType
   title: string
   notes: string
+  ingredients?: string[]
+}
+
+export type ShopCategory = 'produce' | 'meat' | 'dairy' | 'bakery' | 'pantry' | 'frozen' | 'drinks' | 'other'
+
+export interface ShoppingItem {
+  id: string
+  tripId: string
+  name: string
+  quantity: string
+  category: ShopCategory
+  mealRef: string
+  checked: boolean
 }
 
 export interface BudgetItem {
@@ -69,12 +82,44 @@ export interface Reminder {
   severity: ReminderSeverity
 }
 
+export type WaypointType = 'campsite' | 'fuel' | 'food' | 'fishing' | 'attraction' | 'start' | 'end' | 'custom'
+
+export interface Waypoint {
+  id: string
+  tripId: string
+  name: string
+  lat: number
+  lng: number
+  type: WaypointType
+  notes: string
+  order: number
+  googleMapsUrl: string
+  nights: number
+}
+
 export interface TripWithDetails extends Trip {
   itinerary: ItineraryDay[]
   packingItems: PackingItem[]
   meals: Meal[]
   budgetItems: BudgetItem[]
   reminders: Reminder[]
+}
+
+export interface VehicleConfig {
+  fuelType: 'petrol' | 'diesel' | 'lpg'
+  tankSizeL: number
+  consumptionL100km: number
+  towingConsumptionL100km: number
+  isTowing: boolean
+  fuelPricePerL: number
+}
+
+export interface AppSettings {
+  googleMapsApiKey?: string
+  anthropicApiKey?: string
+  homeLocation?: { name: string; lat: number; lng: number }
+  vehicleConfig?: VehicleConfig
+  dietaryRestrictions?: string[]
 }
 
 export interface AppDatabase {
@@ -84,4 +129,6 @@ export interface AppDatabase {
   meals: Meal[]
   budgetItems: BudgetItem[]
   reminders: Reminder[]
+  waypoints: Waypoint[]
+  shoppingItems: ShoppingItem[]
 }

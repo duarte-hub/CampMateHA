@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { TripWithDetails, PackingItem, BudgetItem } from '@/lib/types'
+import MealsTab from './MealsTab'
 
 type Tab = 'overview' | 'itinerary' | 'packing' | 'meals' | 'budget'
 
@@ -98,10 +99,13 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
           </div>
           <h1 className="text-2xl font-bold text-stone-900">{trip.title || trip.destination}</h1>
           <p className="text-stone-500 text-sm mt-0.5">
-            📍 {trip.destination} · {fmtDate(trip.startDate)} – {fmtDate(trip.endDate)} · {nights} nights
+            📍 {trip.destination} · {fmtDate(trip.startDate)}{nights > 0 ? ` – ${fmtDate(trip.endDate)} · ${nights} night${nights !== 1 ? 's' : ''}` : ' · Day trip'}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Link href={`/trips/${id}/map`} className="btn-secondary text-xs">
+            🗺️ Map
+          </Link>
           <Link href={`/trips/${id}/share`} className="btn-secondary text-xs">
             Share
           </Link>
@@ -274,38 +278,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       )}
 
       {/* Meals Tab */}
-      {tab === 'meals' && (
-        <div className="space-y-4">
-          {Object.entries(
-            trip.meals.reduce<Record<string, typeof trip.meals>>((acc, meal) => {
-              ;(acc[meal.date] ??= []).push(meal)
-              return acc
-            }, {})
-          ).sort(([a], [b]) => a.localeCompare(b)).map(([date, meals]) => (
-            <div key={date} className="card overflow-hidden">
-              <div className="px-4 py-2 bg-stone-50 border-b border-stone-100">
-                <h4 className="font-semibold text-sm text-stone-700">{fmtDate(date)}</h4>
-              </div>
-              <div className="divide-y divide-stone-50">
-                {meals.sort((a, b) => {
-                  const order = { breakfast: 0, lunch: 1, dinner: 2, snack: 3 }
-                  return order[a.mealType] - order[b.mealType]
-                }).map(meal => (
-                  <div key={meal.id} className="flex gap-3 px-4 py-2.5">
-                    <span className="text-xs font-medium uppercase tracking-wide text-stone-400 w-16 pt-0.5 shrink-0">
-                      {meal.mealType}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-stone-800">{meal.title}</p>
-                      {meal.notes && <p className="text-xs text-stone-400 mt-0.5">{meal.notes}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {tab === 'meals' && <MealsTab tripId={trip.id} initialMeals={trip.meals} />}
 
       {/* Budget Tab */}
       {tab === 'budget' && (

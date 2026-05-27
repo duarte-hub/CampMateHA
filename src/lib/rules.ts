@@ -1,13 +1,17 @@
 import type {
-  Trip, PackingItem, ItineraryDay, Meal, BudgetItem, Reminder,
+  Trip, PackingItem, ItineraryDay, Meal, BudgetItem, Reminder, Waypoint,
 } from './types'
 
 function uid() { return crypto.randomUUID() }
 
 export function nightsBetween(start: string, end: string): number {
-  return Math.max(1, Math.round(
+  return Math.max(0, Math.round(
     (new Date(end).getTime() - new Date(start).getTime()) / 86_400_000
   ))
+}
+
+export function isDayTrip(start: string, end: string): boolean {
+  return nightsBetween(start, end) === 0
 }
 
 function addDays(base: string, n: number): string {
@@ -27,6 +31,7 @@ function formatDate(iso: string): string {
 export function generatePackingList(trip: Trip): PackingItem[] {
   const t = trip
   const nights = nightsBetween(t.startDate, t.endDate)
+  const dayOnly = nights === 0
   const people = t.adults + t.kids
   const isTent = t.campingStyle === 'tent'
   const isMobile = t.campingStyle === 'camper_trailer' || t.campingStyle === 'caravan'
@@ -44,59 +49,68 @@ export function generatePackingList(trip: Trip): PackingItem[] {
 
   const list: PackingItem[] = []
 
-  // Shelter
-  if (isTent) {
-    list.push(item('Shelter', 'Tent'))
-    list.push(item('Shelter', 'Extra tent pegs'))
-    list.push(item('Shelter', 'Ground sheet'))
-    list.push(item('Shelter', 'Tarp / shade shelter'))
-    list.push(item('Shelter', 'Rubber mallet'))
-  }
-  if (isMobile) {
-    list.push(item('Shelter', 'Awning / annex'))
-    list.push(item('Shelter', 'Levelling blocks', 4))
-    list.push(item('Shelter', 'Chocks / wheel stops', 2))
+  if (!dayOnly) {
+    // Shelter
+    if (isTent) {
+      list.push(item('Shelter', 'Tent'))
+      list.push(item('Shelter', 'Extra tent pegs'))
+      list.push(item('Shelter', 'Ground sheet'))
+      list.push(item('Shelter', 'Tarp / shade shelter'))
+      list.push(item('Shelter', 'Rubber mallet'))
+    }
+    if (isMobile) {
+      list.push(item('Shelter', 'Awning / annex'))
+      list.push(item('Shelter', 'Levelling blocks', 4))
+      list.push(item('Shelter', 'Chocks / wheel stops', 2))
+    }
+
+    // Sleeping
+    list.push(item('Sleeping', 'Sleeping bag', people))
+    list.push(item('Sleeping', 'Sleeping mat / pad', people))
+    list.push(item('Sleeping', 'Pillow', people))
+    if (nights > 2) list.push(item('Sleeping', 'Extra blanket', Math.ceil(people / 2)))
+
+    // Cooking
+    list.push(item('Cooking', 'Camp stove'))
+    list.push(item('Cooking', 'Gas canisters', Math.ceil(nights / 2) + 1))
+    list.push(item('Cooking', 'Pot & pan set'))
+    list.push(item('Cooking', 'Kettle'))
+    list.push(item('Cooking', 'Plates, bowls, cutlery', people))
+    list.push(item('Cooking', 'Cups / mugs', people))
+    list.push(item('Cooking', 'Cutting board & knife'))
+    list.push(item('Cooking', 'Washing-up basin & soap'))
+    list.push(item('Cooking', 'Cooking oil & spices'))
+    list.push(item('Cooking', 'Aluminium foil'))
+    list.push(item('Cooking', 'Ziplock / food storage bags', 6))
+    if (hasFire) {
+      list.push(item('Cooking', 'Camp oven / cast iron'))
+      list.push(item('Cooking', 'Fire starters / lighters', 2))
+      list.push(item('Cooking', 'Firewood & kindling', nights))
+      list.push(item('Cooking', 'Long oven gloves'))
+      list.push(item('Cooking', 'Campfire grill grate'))
+    }
   }
 
-  // Sleeping
-  list.push(item('Sleeping', 'Sleeping bag', people))
-  list.push(item('Sleeping', 'Sleeping mat / pad', people))
-  list.push(item('Sleeping', 'Pillow', people))
-  if (nights > 2) list.push(item('Sleeping', 'Extra blanket', Math.ceil(people / 2)))
-
-  // Cooking
-  list.push(item('Cooking', 'Camp stove'))
-  list.push(item('Cooking', 'Gas canisters', Math.ceil(nights / 2) + 1))
-  list.push(item('Cooking', 'Pot & pan set'))
-  list.push(item('Cooking', 'Kettle'))
-  list.push(item('Cooking', 'Plates, bowls, cutlery', people))
-  list.push(item('Cooking', 'Cups / mugs', people))
-  list.push(item('Cooking', 'Cutting board & knife'))
-  list.push(item('Cooking', 'Washing-up basin & soap'))
-  list.push(item('Cooking', 'Cooking oil & spices'))
-  list.push(item('Cooking', 'Aluminium foil'))
-  list.push(item('Cooking', 'Ziplock / food storage bags', 6))
-  if (hasFire) {
-    list.push(item('Cooking', 'Camp oven / cast iron'))
-    list.push(item('Cooking', 'Fire starters / lighters', 2))
-    list.push(item('Cooking', 'Firewood & kindling', nights))
-    list.push(item('Cooking', 'Long oven gloves'))
-    list.push(item('Cooking', 'Campfire grill grate'))
+  // Food & Water (lighter for day trip)
+  if (dayOnly) {
+    list.push(item('Food & Water', 'Cooler / esky for food & drinks'))
+    list.push(item('Food & Water', 'Packed lunch & snacks'))
+    list.push(item('Food & Water', 'Water bottle per person', people))
+    list.push(item('Food & Water', 'Rubbish bag', 1))
+  } else {
+    list.push(item('Food & Water', 'Portable fridge / cooler'))
+    list.push(item('Food & Water', 'Ice (bags)', Math.ceil(nights * 1.5)))
+    list.push(item('Food & Water', '20L water container', nights > 2 ? 2 : 1))
+    list.push(item('Food & Water', 'Water bottle per person', people))
+    list.push(item('Food & Water', 'Rubbish bags', nights))
   }
-
-  // Food & Water
-  list.push(item('Food & Water', 'Portable fridge / cooler'))
-  list.push(item('Food & Water', 'Ice (bags)', Math.ceil(nights * 1.5)))
-  list.push(item('Food & Water', '20L water container', nights > 2 ? 2 : 1))
-  list.push(item('Food & Water', 'Water bottle per person', people))
-  list.push(item('Food & Water', 'Rubbish bags', nights))
 
   // Clothing
   list.push(item('Clothing', 'Warm jacket', people))
   list.push(item('Clothing', 'Rain jacket', people))
-  list.push(item('Clothing', 'Thermal layers', people))
+  if (!dayOnly) list.push(item('Clothing', 'Thermal layers', people))
   list.push(item('Clothing', 'Sturdy shoes / boots', people))
-  list.push(item('Clothing', 'Camp sandals / thongs', people))
+  if (!dayOnly) list.push(item('Clothing', 'Camp sandals / thongs', people))
   list.push(item('Clothing', 'Sun hat', people))
   if (hasBeach) {
     list.push(item('Clothing', 'Swimwear', people))
@@ -104,13 +118,15 @@ export function generatePackingList(trip: Trip): PackingItem[] {
     list.push(item('Clothing', 'Towel', people))
   }
 
-  // Lighting & Power
-  list.push(item('Lighting & Power', 'Headtorch', people))
-  list.push(item('Lighting & Power', 'Spare batteries / charging cable'))
-  list.push(item('Lighting & Power', 'Camp lantern'))
-  if (nights > 2) {
-    list.push(item('Lighting & Power', 'Portable power bank'))
-    list.push(item('Lighting & Power', 'Solar panel'))
+  if (!dayOnly) {
+    // Lighting & Power
+    list.push(item('Lighting & Power', 'Headtorch', people))
+    list.push(item('Lighting & Power', 'Spare batteries / charging cable'))
+    list.push(item('Lighting & Power', 'Camp lantern'))
+    if (nights > 2) {
+      list.push(item('Lighting & Power', 'Portable power bank'))
+      list.push(item('Lighting & Power', 'Solar panel'))
+    }
   }
 
   // Safety & First Aid
@@ -121,19 +137,19 @@ export function generatePackingList(trip: Trip): PackingItem[] {
   list.push(item('Safety & First Aid', 'Emergency whistle'))
   list.push(item('Safety & First Aid', 'Offline maps / navigation app'))
   list.push(item('Safety & First Aid', 'Emergency contact list'))
-  if (isBeginner || nights > 3) {
+  if (!dayOnly && (isBeginner || nights > 3)) {
     list.push(item('Safety & First Aid', 'PLB / EPIRB emergency beacon'))
   }
 
   // Kids
   if (hasKids) {
-    list.push(item('Kids', 'Kids sleeping bag', t.kids))
+    if (!dayOnly) list.push(item('Kids', 'Kids sleeping bag', t.kids))
     list.push(item('Kids', 'Extra clothing sets for kids', t.kids * 2))
-    list.push(item('Kids', 'Kids headtorch', t.kids))
+    if (!dayOnly) list.push(item('Kids', 'Kids headtorch', t.kids))
     list.push(item('Kids', 'Kids sunscreen'))
     list.push(item('Kids', 'Wipes / hand sanitiser', 2))
     list.push(item('Kids', 'Books, games, activities'))
-    list.push(item('Kids', 'Glow sticks for evening'))
+    if (!dayOnly) list.push(item('Kids', 'Glow sticks for evening'))
   }
 
   // 4WD & Recovery
@@ -169,20 +185,27 @@ export function generatePackingList(trip: Trip): PackingItem[] {
     list.push(item('Hiking', 'Water filter / purification tabs'))
   }
 
-  // Toiletries
-  list.push(item('Toiletries', 'Toilet paper', nights + 1))
-  list.push(item('Toiletries', 'Toothbrush & toothpaste', people))
-  list.push(item('Toiletries', 'Biodegradable soap & shampoo'))
-  list.push(item('Toiletries', 'Trowel (bush toileting)'))
+  if (!dayOnly) {
+    // Toiletries
+    list.push(item('Toiletries', 'Toilet paper', nights + 1))
+    list.push(item('Toiletries', 'Toothbrush & toothpaste', people))
+    list.push(item('Toiletries', 'Biodegradable soap & shampoo'))
+    list.push(item('Toiletries', 'Trowel (bush toileting)'))
 
-  // Camp Setup
-  list.push(item('Camp Setup', 'Camp chairs', people))
-  list.push(item('Camp Setup', 'Camp table'))
-  list.push(item('Camp Setup', 'Clothesline & pegs'))
-  list.push(item('Camp Setup', 'Multi-tool / pocket knife'))
-  list.push(item('Camp Setup', 'Duct tape'))
-  list.push(item('Camp Setup', 'Cable ties', 10))
-  list.push(item('Camp Setup', 'Outdoor mat / rug'))
+    // Camp Setup
+    list.push(item('Camp Setup', 'Camp chairs', people))
+    list.push(item('Camp Setup', 'Camp table'))
+    list.push(item('Camp Setup', 'Clothesline & pegs'))
+    list.push(item('Camp Setup', 'Multi-tool / pocket knife'))
+    list.push(item('Camp Setup', 'Duct tape'))
+    list.push(item('Camp Setup', 'Cable ties', 10))
+    list.push(item('Camp Setup', 'Outdoor mat / rug'))
+  } else {
+    // Day trip — just the basics
+    list.push(item('Essentials', 'Picnic blanket / folding chairs'))
+    list.push(item('Essentials', 'Multi-tool / pocket knife'))
+    list.push(item('Essentials', 'Portable power bank'))
+  }
 
   return list
 }
@@ -223,6 +246,32 @@ export function generateItinerary(trip: Trip): ItineraryDay[] {
   const acts = trip.activities
   const hasFire = acts.includes('campfire')
   const days: ItineraryDay[] = []
+
+  // Day trip — single entry
+  if (nights === 0) {
+    const primary = acts[0]
+    let summary = `Day trip to ${trip.destination}`
+    let activities: string[]
+
+    if (primary === 'fishing') {
+      summary = `Fishing day trip to ${trip.destination}`
+      activities = ['Depart early — morning bite is best', 'Check tide & spot conditions', 'Morning fishing session', 'Packed lunch at the water', 'Afternoon fishing or explore', 'Pack up and head home']
+    } else if (primary === 'hiking') {
+      summary = `Day hike at ${trip.destination}`
+      activities = ['Early departure — beat the heat', 'Check trail conditions & weather', 'Morning hike (bring plenty of water)', 'Lunch at a viewpoint or trailhead', 'Afternoon: easier walk or head back', 'Return home']
+    } else if (primary === 'beach' || primary === 'swimming') {
+      summary = `Beach day at ${trip.destination}`
+      activities = ['Depart early to get a good spot', 'Swim, surf, or explore the beach', 'Packed lunch on the sand', 'Afternoon beach activities', 'Rinse off and pack up', 'Return home']
+    } else if (primary === '4wd') {
+      summary = `4WD day trip to ${trip.destination}`
+      activities = ['Lower tyre pressures before hitting tracks', 'Check track conditions & fuel level', 'Morning 4WD exploration', 'Lunch at a scenic stop', 'Afternoon tracks or head back', 'Re-inflate tyres on sealed road']
+    } else {
+      activities = ['Depart in the morning', `Arrive at ${trip.destination}`, 'Explore and enjoy activities', 'Packed lunch or find a café', 'Afternoon activities', 'Pack up and return home']
+    }
+
+    days.push({ id: uid(), tripId: trip.id, date: trip.startDate, dayNumber: 1, summary, activities, notes: `Depart: ${formatDate(trip.startDate)}` })
+    return days
+  }
 
   for (let i = 0; i <= nights; i++) {
     const date = addDays(trip.startDate, i)
@@ -356,6 +405,13 @@ export function generateMeals(trip: Trip): Meal[] {
     return { id: uid(), tripId: trip.id, date, mealType, title, notes }
   }
 
+  // Day trip — just a packed lunch and snacks
+  if (nights === 0) {
+    meals.push(meal(trip.startDate, 'lunch', 'Packed lunch (sandwiches, wraps, or rolls)', 'Prepare before leaving'))
+    meals.push(meal(trip.startDate, 'snack', 'Trail mix, fruit, muesli bars, drinks'))
+    return meals
+  }
+
   for (let i = 0; i <= nights; i++) {
     const date = addDays(trip.startDate, i)
 
@@ -380,11 +436,26 @@ export function generateMeals(trip: Trip): Meal[] {
 
 export function generateBudget(trip: Trip): BudgetItem[] {
   const nights = nightsBetween(trip.startDate, trip.endDate)
+  const dayOnly = nights === 0
   const people = trip.adults + trip.kids
   const is4WD = trip.vehicleType === '4wd'
 
   function item(category: string, name: string, estimatedCost: number): BudgetItem {
     return { id: uid(), tripId: trip.id, category, name, estimatedCost }
+  }
+
+  if (dayOnly) {
+    return [
+      item('Transport', 'Fuel (estimate)', is4WD ? 60 : 40),
+      item('Food & Supplies', 'Packed lunch & snacks', people * 15),
+      item('Food & Supplies', 'Drinks', people * 10),
+      ...(trip.activities.includes('fishing') ? [
+        item('Activities', 'Fishing licence / permits', trip.adults * 12),
+        item('Activities', 'Bait & tackle top-up', 20),
+      ] : []),
+      ...(trip.activities.includes('4wd') ? [item('Activities', 'National park / 4WD track entry', 25)] : []),
+      item('Miscellaneous', 'Contingency fund', 30),
+    ]
   }
 
   return [
@@ -409,6 +480,7 @@ export function generateBudget(trip: Trip): BudgetItem[] {
 
 export function generateReminders(trip: Trip): Reminder[] {
   const nights = nightsBetween(trip.startDate, trip.endDate)
+  const dayOnly = nights === 0
   const is4WD = trip.vehicleType === '4wd'
 
   function rem(type: string, message: string, severity: Reminder['severity']): Reminder {
@@ -416,11 +488,14 @@ export function generateReminders(trip: Trip): Reminder[] {
   }
 
   const list: Reminder[] = [
-    rem('booking', 'Book your campsite early — popular spots fill fast, especially in school holidays', 'warning'),
-    rem('weather', 'Check the extended forecast 3–5 days before departure', 'info'),
-    rem('vehicle', 'Service vehicle before a long trip — check tyres, oil, and cooling', 'warning'),
-    rem('safety', 'Tell someone your full trip plan and expected return date', 'critical'),
+    rem('weather', 'Check the forecast the night before departure', dayOnly ? 'info' : 'info'),
+    rem('safety', 'Tell someone where you are going and your expected return time', 'critical'),
   ]
+
+  if (!dayOnly) {
+    list.push(rem('booking', 'Book your campsite early — popular spots fill fast, especially in school holidays', 'warning'))
+    list.push(rem('vehicle', 'Service vehicle before a long trip — check tyres, oil, and cooling', 'warning'))
+  }
 
   if (nights > 3) {
     list.push(rem('supplies', 'Longer trip: carry extra water, food, and a fuel reserve', 'warning'))
@@ -469,4 +544,84 @@ export function generateReminders(trip: Trip): Reminder[] {
   }
 
   return list
+}
+
+// ─── Itinerary from map waypoints ────────────────────────────────────────────
+
+export function generateItineraryFromWaypoints(trip: Trip, waypoints: Waypoint[]): ItineraryDay[] {
+  const stops = [...waypoints].sort((a, b) => a.order - b.order).filter(w => w.nights > 0)
+  if (stops.length === 0) return generateItinerary(trip)
+
+  const hasFire = trip.activities.includes('campfire')
+  const days: ItineraryDay[] = []
+  let dayNum = 1
+  let date = trip.startDate
+
+  for (let i = 0; i < stops.length; i++) {
+    const wp = stops[i]
+    const prev = stops[i - 1]
+
+    for (let n = 0; n < wp.nights; n++) {
+      const isArrival = n === 0
+      const isLastNight = n === wp.nights - 1
+      const hasNext = i < stops.length - 1
+
+      let summary: string
+      let activities: string[]
+
+      if (isArrival && i === 0) {
+        summary = `Depart — drive to ${wp.name}`
+        activities = ['Final gear & vehicle check', 'Early departure', `Drive to ${wp.name}`, `Arrive ${wp.name}`, 'Set up camp / check in', 'Easy first-night dinner']
+      } else if (isArrival) {
+        summary = `Drive from ${prev.name} to ${wp.name}`
+        activities = [`Pack up at ${prev.name}`, 'Quick breakfast before leaving', `Drive to ${wp.name}`, `Arrive ${wp.name}`, 'Set up / check in', 'Relax and explore']
+      } else if (isLastNight && hasNext) {
+        summary = `Last day at ${wp.name} — prepare to move on`
+        activities = ['Morning activity', `Explore ${wp.name}`, 'Pack non-essentials', `Prepare for drive to ${stops[i + 1].name} tomorrow`, 'Dinner at camp', hasFire ? 'Final campfire' : 'Early night']
+      } else {
+        const act = trip.activities[(n - 1) % Math.max(trip.activities.length, 1)]
+        summary = buildDaySummary(wp, act)
+        activities = buildDayActivities(wp, act, hasFire)
+      }
+
+      days.push({ id: uid(), tripId: trip.id, date, dayNumber: dayNum++, summary, activities, notes: isArrival ? `Arrive: ${wp.name}` : '' })
+      date = addDays(date, 1)
+    }
+  }
+
+  // Final return-home day
+  const last = stops[stops.length - 1]
+  days.push({
+    id: uid(), tripId: trip.id, date, dayNumber: dayNum,
+    summary: `Pack down at ${last.name} — return home`,
+    activities: ['Early breakfast', 'Pack down camp systematically', 'Leave site clean — pack in, pack out', 'Final vehicle check', 'Depart for home', 'Fuel stop & debrief on the road'],
+    notes: `Return from ${last.name}`,
+  })
+
+  return days
+}
+
+function buildDaySummary(wp: Waypoint, act: string | undefined): string {
+  if (wp.type === 'fishing' || act === 'fishing') return `Fishing day at ${wp.name}`
+  if (act === 'beach' || act === 'swimming') return `Beach day at ${wp.name}`
+  if (act === 'hiking') return `Hiking day around ${wp.name}`
+  if (act === '4wd') return `4WD exploration around ${wp.name}`
+  if (wp.type === 'attraction') return `Explore ${wp.name}`
+  return `Full day at ${wp.name}`
+}
+
+function buildDayActivities(wp: Waypoint, act: string | undefined, hasFire: boolean): string[] {
+  if (act === 'fishing' || wp.type === 'fishing') {
+    return ['Early morning fishing session', 'Check tide & spot conditions', 'Lunch at camp or waterside', 'Afternoon fishing', 'Cook catch of the day for dinner', hasFire ? 'Campfire evening' : 'Relax at camp']
+  }
+  if (act === 'hiking') {
+    return ['Early breakfast, pack day bags', 'Morning hike (check conditions first)', 'Lunch on trail or at viewpoint', 'Afternoon walk or rest at camp', 'Hot wash and freshen up', hasFire ? 'Campfire evening' : 'Cook dinner & relax']
+  }
+  if (act === 'beach' || act === 'swimming') {
+    return ['Early beach walk at low tide', 'Swim, snorkel, or surf', 'Beach picnic lunch', 'Afternoon explore', 'Rinse off', 'Dinner at camp']
+  }
+  if (act === '4wd') {
+    return ['Lower tyre pressures (20–25 PSI)', 'Morning 4WD tracks', 'Lunch at a scenic stop', 'Afternoon tracks or explore', 'Re-inflate tyres on return', 'Camp dinner']
+  }
+  return ['Slow morning coffee', `Explore ${wp.name}`, 'Lunch', 'Afternoon activities', 'Cook dinner', hasFire ? 'Campfire evening' : 'Relax and unwind']
 }

@@ -156,6 +156,11 @@ export default function NewTripPage() {
                 />
               </div>
             </div>
+            {nights === 0 && data.startDate && data.endDate && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800 font-medium">
+                ☀️ Day trip — depart and return on the same day
+              </div>
+            )}
             {nights > 0 && (
               <p className="text-sm text-forest-700 font-medium">
                 🌙 {nights} night{nights !== 1 ? 's' : ''} away
@@ -292,7 +297,9 @@ export default function NewTripPage() {
               <ReviewRow label="Destination" value={data.destination || '—'} />
               <ReviewRow
                 label="Dates"
-                value={`${fmtDate(data.startDate)} → ${fmtDate(data.endDate)} (${nights} nights)`}
+                value={nights === 0
+                  ? `${fmtDate(data.startDate)} (Day trip)`
+                  : `${fmtDate(data.startDate)} → ${fmtDate(data.endDate)} (${nights} night${nights !== 1 ? 's' : ''})`}
               />
               <ReviewRow label="Group" value={`${data.adults} adults${data.kids > 0 ? `, ${data.kids} kids` : ''}`} />
               <ReviewRow label="Style" value={styleLabel(data.campingStyle)} />
