@@ -52,6 +52,7 @@ export interface Meal {
   notes: string
   ingredients?: string[]
   templateId?: string
+  ingredientDetails?: MealIngredient[]
 }
 
 export type ShopCategory = 'produce' | 'meat' | 'dairy' | 'bakery' | 'pantry' | 'frozen' | 'drinks' | 'other'

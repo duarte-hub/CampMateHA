@@ -159,6 +159,50 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
   )
 }
 
+// ── Ingredient Editor ────────────────────────────────────────────────────────
+
+const SHOP_CATS: ShopCategory[] = ['produce','meat','dairy','bakery','pantry','frozen','drinks','other']
+
+interface EditorProps {
+  ingredients: import('@/lib/types').MealIngredient[]
+  onChange: (v: import('@/lib/types').MealIngredient[]) => void
+  onSave: () => void
+  onCancel: () => void
+}
+
+function IngredientEditor({ ingredients, onChange, onSave, onCancel }: EditorProps) {
+  function update(i: number, field: string, value: string) {
+    onChange(ingredients.map((ing, idx) => idx === i ? { ...ing, [field]: value } : ing))
+  }
+  return (
+    <div className="mt-1 mb-2 rounded-xl border border-forest-200 bg-forest-50/50 p-3 space-y-2" onClick={e => e.stopPropagation()}>
+      <p className="text-xs font-bold text-stone-600 uppercase tracking-wide">Ingredients</p>
+      <div className="space-y-1.5">
+        {ingredients.map((ing, i) => (
+          <div key={i} className="flex gap-1.5 items-center">
+            <input className="input text-xs flex-[2] py-1 min-w-0" placeholder="Ingredient name"
+              value={ing.name} onChange={e => update(i, 'name', e.target.value)} />
+            <input className="input text-xs w-16 py-1 shrink-0" placeholder="Qty"
+              value={ing.quantity} onChange={e => update(i, 'quantity', e.target.value)} />
+            <select className="input text-xs w-24 py-1 shrink-0" value={ing.category}
+              onChange={e => update(i, 'category', e.target.value as ShopCategory)}>
+              {SHOP_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <button onClick={() => onChange(ingredients.filter((_, idx) => idx !== i))}
+              className="text-stone-400 hover:text-red-500 shrink-0 text-sm">✕</button>
+          </div>
+        ))}
+      </div>
+      <button onClick={() => onChange([...ingredients, { name: '', quantity: '', category: 'pantry' }])}
+        className="text-xs text-forest-700 font-semibold hover:underline">+ Add ingredient</button>
+      <div className="flex gap-2 pt-1">
+        <button onClick={onCancel} className="flex-1 text-xs py-1.5 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-100 transition-colors">Cancel</button>
+        <button onClick={onSave} className="flex-1 text-xs py-1.5 bg-forest-600 text-white rounded-lg hover:bg-forest-700 transition-colors font-semibold">Save</button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 interface Props { tripId: string; initialMeals: Meal[] }
@@ -175,6 +219,8 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
   const [buildMsg,   setBuildMsg]   = useState('')
   const [dragId,     setDragId]     = useState<string | null>(null)
   const [dragOver,   setDragOver]   = useState<string | null>(null)
+  const [editingId,  setEditingId]  = useState<string | null>(null)
+  const [editIngs,   setEditIngs]   = useState<import('@/lib/types').MealIngredient[]>([])
 
   // Load trip dates + templates + shopping items
   useEffect(() => {
@@ -223,6 +269,23 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
     const meal: Meal = await res.json()
     setMeals(prev => [...prev, meal])
     setPicker(null)
+  }
+
+  function openEditor(m: Meal) {
+    const template = templates.find(t => t.id === m.templateId)
+    const base = m.ingredientDetails ?? template?.ingredients ?? []
+    setEditIngs(base.map(i => ({ ...i })))
+    setEditingId(m.id)
+  }
+
+  async function saveIngredients(mealId: string) {
+    await fetch(`/api/trips/${tripId}/meals/${mealId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredientDetails: editIngs }),
+    })
+    setMeals(prev => prev.map(m => m.id === mealId ? { ...m, ingredientDetails: editIngs } : m))
+    setEditingId(null)
   }
 
   async function moveMeal(mealId: string, newDate: string, newMealType: MealType) {
@@ -336,15 +399,34 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                             ) : (
                               <div className="space-y-1">
                                 {slot.map(m => (
-                                  <div key={m.id}
-                                    draggable
-                                    onDragStart={() => setDragId(m.id)}
-                                    onDragEnd={() => { setDragId(null); setDragOver(null) }}
-                                    className={`flex items-center gap-2 group rounded px-1 -mx-1 cursor-grab active:cursor-grabbing transition-opacity ${dragId === m.id ? 'opacity-40' : ''}`}>
-                                    <span className="text-stone-300 text-xs shrink-0 select-none">⠿</span>
-                                    <span className="text-sm text-stone-700 font-medium flex-1 truncate select-none">{m.title}</span>
-                                    <button onClick={() => removeMeal(m.id)}
-                                      className="text-xs text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0">✕</button>
+                                  <div key={m.id}>
+                                    <div
+                                      draggable={editingId !== m.id}
+                                      onDragStart={() => setDragId(m.id)}
+                                      onDragEnd={() => { setDragId(null); setDragOver(null) }}
+                                      className={`flex items-center gap-2 group rounded px-1 -mx-1 transition-opacity ${editingId === m.id ? '' : 'cursor-grab active:cursor-grabbing'} ${dragId === m.id ? 'opacity-40' : ''}`}>
+                                      <span className="text-stone-300 text-xs shrink-0 select-none">⠿</span>
+                                      <span className="text-sm text-stone-700 font-medium flex-1 truncate select-none">{m.title}</span>
+                                      {m.ingredientDetails && (
+                                        <span className="text-xs text-forest-600 shrink-0 opacity-0 group-hover:opacity-100">✎</span>
+                                      )}
+                                      <button
+                                        onClick={e => { e.stopPropagation(); editingId === m.id ? setEditingId(null) : openEditor(m) }}
+                                        className="text-xs text-stone-300 hover:text-forest-600 opacity-0 group-hover:opacity-100 shrink-0"
+                                        title="Edit ingredients">
+                                        🥄
+                                      </button>
+                                      <button onClick={() => removeMeal(m.id)}
+                                        className="text-xs text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0">✕</button>
+                                    </div>
+                                    {editingId === m.id && (
+                                      <IngredientEditor
+                                        ingredients={editIngs}
+                                        onChange={setEditIngs}
+                                        onSave={() => saveIngredients(m.id)}
+                                        onCancel={() => setEditingId(null)}
+                                      />
+                                    )}
                                   </div>
                                 ))}
                                 <button onClick={() => setPicker({ date, mealType: value })}

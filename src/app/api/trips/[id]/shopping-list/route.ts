@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   for (const meal of tripMeals) {
     const template = meal.templateId ? allTemplates.find(t => t.id === meal.templateId) : null
-    const ingredients = template?.ingredients ?? []
+    const ingredients = meal.ingredientDetails ?? template?.ingredients ?? []
 
     for (const ing of ingredients) {
       const key = ing.name.toLowerCase()
