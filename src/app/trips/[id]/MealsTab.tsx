@@ -311,6 +311,11 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
     setMeals(prev => prev.filter(m => m.date !== date))
   }
 
+  async function clearAll() {
+    await Promise.all(meals.map(m => fetch(`/api/trips/${tripId}/meals/${m.id}`, { method: 'DELETE' })))
+    setMeals([])
+  }
+
   async function untickAll() {
     const toUntick = shopItems.filter(s => s.checked)
     setShopItems(prev => prev.map(s => ({ ...s, checked: false })))
@@ -387,6 +392,14 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
             </div>
           ) : (
             <>
+              {meals.length > 0 && (
+                <div className="flex justify-end">
+                  <button onClick={clearAll}
+                    className="text-xs text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                    Clear all days
+                  </button>
+                </div>
+              )}
               {dates.map((date, di) => (
                 <div key={date} className="card overflow-hidden border-l-4 border-l-forest-600 dark:border-l-forest-500">
                   <div className="px-4 py-3 bg-forest-50 dark:bg-stone-800 border-b border-forest-100 dark:border-stone-700 flex items-center gap-3">
