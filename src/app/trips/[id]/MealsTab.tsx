@@ -232,7 +232,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
     if (selected.size === 0) return
     setBuilding(true); setBuildMsg('')
     try {
-      const res = await fetch(`/api/trips/${tripId}/shopping-list/build`, {
+      const res = await fetch(`/api/trips/${tripId}/shopping-list`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mealIds: Array.from(selected) }),
