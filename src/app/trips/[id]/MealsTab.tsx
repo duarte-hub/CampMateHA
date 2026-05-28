@@ -253,6 +253,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
         ingredients: template.ingredients.map(i => i.name),
         templateId: template.id,
         notes: template.notes ?? '',
+        ingredientDetails: template.ingredients,
       }),
     })
     const meal: Meal = await res.json()

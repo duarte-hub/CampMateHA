@@ -22,6 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     notes: body.notes ?? '',
     ingredients: body.ingredients ?? [],
     templateId: body.templateId,
+    ingredientDetails: body.ingredientDetails,
   }
   db.meals = [...(db.meals ?? []), meal]
   writeDb(db)

@@ -22,6 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </a>
             <span className="hidden sm:inline ml-auto text-xs text-stone-400 dark:text-stone-500">Camping Trip Planner</span>
             <div className="ml-auto sm:ml-3 flex items-center gap-2">
+              <a href="/meal-library" className="text-xs font-medium text-stone-500 hover:text-stone-800 bg-stone-100 hover:bg-stone-200 dark:text-stone-400 dark:hover:text-stone-100 dark:bg-stone-800 dark:hover:bg-stone-700 rounded-lg px-3 py-1.5 transition-colors">
+                🍽 Meals
+              </a>
               <a href="/calendar" className="text-xs font-medium text-stone-500 hover:text-stone-800 bg-stone-100 hover:bg-stone-200 dark:text-stone-400 dark:hover:text-stone-100 dark:bg-stone-800 dark:hover:bg-stone-700 rounded-lg px-3 py-1.5 transition-colors">
                 📅 Calendar
               </a>

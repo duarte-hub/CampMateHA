@@ -8,3 +8,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   writeDb(db)
   return NextResponse.json({ ok: true })
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const body = await req.json()
+  const db = readDb()
+  const tmpl = (db.mealTemplates ?? []).find(t => t.id === id)
+  if (!tmpl) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  Object.assign(tmpl, body)
+  writeDb(db)
+  return NextResponse.json(tmpl)
+}
