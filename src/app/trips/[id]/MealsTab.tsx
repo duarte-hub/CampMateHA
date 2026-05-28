@@ -62,14 +62,14 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col"
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="w-full max-w-md bg-white dark:bg-stone-900 rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200">
-          <h3 className="font-bold text-stone-800">Pick a meal</h3>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-700 text-xl leading-none">×</button>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 dark:border-stone-700">
+          <h3 className="font-bold text-stone-800 dark:text-stone-100">Pick a meal</h3>
+          <button onClick={onClose} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 text-xl leading-none">×</button>
         </div>
 
         {!custom ? (
@@ -89,7 +89,7 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
             <div className="flex gap-1.5 px-4 py-2 overflow-x-auto scrollbar-hide">
               {(['all', ...MEAL_TYPES.map(t => t.value)] as (MealType | 'all')[]).map(v => (
                 <button key={v} onClick={() => setFilter(v)}
-                  className={`shrink-0 text-xs px-3 py-1 rounded-full font-semibold border transition-colors ${filter === v ? 'bg-forest-600 text-white border-forest-600' : 'border-stone-300 text-stone-600 hover:border-forest-400'}`}>
+                  className={`shrink-0 text-xs px-3 py-1 rounded-full font-semibold border transition-colors ${filter === v ? 'bg-forest-600 text-white border-forest-600' : 'border-stone-300 text-stone-600 hover:border-forest-400 dark:border-stone-600 dark:text-stone-300 dark:hover:border-forest-500'}`}>
                   {v === 'all' ? 'All' : MEAL_TYPES.find(t => t.value === v)!.icon + ' ' + MEAL_TYPES.find(t => t.value === v)!.label}
                 </button>
               ))}
@@ -102,28 +102,28 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
               )}
               {visible.map(t => (
                 <button key={t.id} onClick={() => onPick(t)}
-                  className="w-full text-left p-3 rounded-xl hover:bg-forest-50 border border-transparent hover:border-forest-200 transition-all group">
+                  className="w-full text-left p-3 rounded-xl hover:bg-forest-50 dark:hover:bg-forest-900/30 border border-transparent hover:border-forest-200 dark:hover:border-forest-700 transition-all group">
                   <div className="flex items-start gap-2">
                     <span className="text-base shrink-0 mt-0.5">{MEAL_TYPES.find(m => m.value === t.mealType)?.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-stone-800 group-hover:text-forest-700">{t.name}</p>
-                      {t.notes && <p className="text-xs text-stone-400 mt-0.5">{t.notes}</p>}
+                      <p className="text-sm font-semibold text-stone-800 dark:text-stone-100 group-hover:text-forest-700 dark:group-hover:text-forest-400">{t.name}</p>
+                      {t.notes && <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{t.notes}</p>}
                       {t.ingredients.length > 0 && (
-                        <p className="text-xs text-stone-400 mt-0.5 truncate">
+                        <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5 truncate">
                           {t.ingredients.map(i => i.name).join(', ')}
                         </p>
                       )}
                     </div>
-                    {t.isCustom && <span className="text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 shrink-0">custom</span>}
+                    {t.isCustom && <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded px-1.5 py-0.5 shrink-0">custom</span>}
                   </div>
                 </button>
               ))}
             </div>
 
             {/* Add custom */}
-            <div className="px-4 py-3 border-t border-stone-100">
+            <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800">
               <button onClick={() => setCustom(true)}
-                className="w-full text-sm text-forest-700 font-semibold hover:underline text-center">
+                className="w-full text-sm text-forest-700 dark:text-forest-400 font-semibold hover:underline text-center">
                 + Create custom meal
               </button>
             </div>
@@ -175,8 +175,8 @@ function IngredientEditor({ ingredients, onChange, onSave, onCancel }: EditorPro
     onChange(ingredients.map((ing, idx) => idx === i ? { ...ing, [field]: value } : ing))
   }
   return (
-    <div className="mt-1 mb-2 rounded-xl border border-forest-200 bg-forest-50/50 p-3 space-y-2" onClick={e => e.stopPropagation()}>
-      <p className="text-xs font-bold text-stone-600 uppercase tracking-wide">Ingredients</p>
+    <div className="mt-1 mb-2 rounded-xl border border-forest-200 dark:border-forest-800 bg-forest-50/50 dark:bg-forest-900/20 p-3 space-y-2" onClick={e => e.stopPropagation()}>
+      <p className="text-xs font-bold text-stone-600 dark:text-stone-400 uppercase tracking-wide">Ingredients</p>
       <div className="space-y-1.5">
         {ingredients.map((ing, i) => (
           <div key={i} className="flex gap-1.5 items-center">
@@ -194,10 +194,10 @@ function IngredientEditor({ ingredients, onChange, onSave, onCancel }: EditorPro
         ))}
       </div>
       <button onClick={() => onChange([...ingredients, { name: '', quantity: '', category: 'pantry' }])}
-        className="text-xs text-forest-700 font-semibold hover:underline">+ Add ingredient</button>
+        className="text-xs text-forest-700 dark:text-forest-400 font-semibold hover:underline">+ Add ingredient</button>
       <div className="flex gap-2 pt-1">
-        <button onClick={onCancel} className="flex-1 text-xs py-1.5 border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-100 transition-colors">Cancel</button>
-        <button onClick={onSave} className="flex-1 text-xs py-1.5 bg-forest-600 text-white rounded-lg hover:bg-forest-700 transition-colors font-semibold">Save</button>
+        <button onClick={onCancel} className="flex-1 text-xs py-1.5 border border-stone-300 dark:border-stone-600 rounded-lg text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors">Cancel</button>
+        <button onClick={onSave} className="flex-1 text-xs py-1.5 bg-forest-600 dark:bg-forest-500 text-white rounded-lg hover:bg-forest-700 dark:hover:bg-forest-600 transition-colors font-semibold">Save</button>
       </div>
     </div>
   )
@@ -349,10 +349,10 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
   return (
     <div className="space-y-3">
       {/* Tab toggle */}
-      <div className="flex rounded-xl overflow-hidden border border-stone-200 bg-stone-100 p-0.5">
+      <div className="flex rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 p-0.5">
         {(['plan', 'shop'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t ? 'bg-white dark:bg-stone-700 text-stone-800 dark:text-stone-100 shadow-sm' : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'}`}>
             {t === 'plan' ? '📋 Meal Plan' : `🛒 Shopping List${shopItems.length > 0 ? ` (${shopItems.length})` : ''}`}
           </button>
         ))}
@@ -368,19 +368,20 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
             </div>
           ) : (
             <>
-              {dates.map(date => (
-                <div key={date} className="card overflow-hidden">
-                  <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-100">
-                    <h4 className="font-semibold text-sm text-stone-700">{fmtDate(date)}</h4>
+              {dates.map((date, di) => (
+                <div key={date} className="card overflow-hidden border-l-4 border-l-forest-600 dark:border-l-forest-500">
+                  <div className="px-4 py-3 bg-forest-50 dark:bg-stone-800 border-b border-forest-100 dark:border-stone-700 flex items-center gap-3">
+                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-forest-600 dark:bg-forest-500 text-white text-xs font-bold shrink-0">{di + 1}</span>
+                    <h4 className="font-bold text-sm text-stone-800 dark:text-stone-100">{fmtDate(date)}</h4>
                   </div>
-                  <div className="divide-y divide-stone-50">
+                  <div className="divide-y divide-stone-100 dark:divide-stone-800">
                     {MEAL_TYPES.map(({ value, label, icon }) => {
                       const slot = mealMap[`${date}__${value}`] ?? []
                       const slotKey = `${date}__${value}`
                       const isOver = dragOver === slotKey && dragId !== null
                       return (
                         <div key={value}
-                          className={`flex items-start gap-3 px-4 py-2.5 min-h-[48px] transition-colors ${isOver ? 'bg-forest-50 border-l-4 border-forest-400' : 'border-l-4 border-transparent'}`}
+                          className={`flex items-start gap-3 px-4 py-2.5 min-h-[48px] transition-colors ${isOver ? 'bg-forest-50 dark:bg-forest-900/30 border-l-4 border-forest-400' : 'border-l-4 border-transparent'}`}
                           onDragOver={e => { e.preventDefault(); setDragOver(slotKey) }}
                           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null) }}
                           onDrop={e => {
@@ -393,7 +394,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                           <div className="flex-1 min-w-0">
                             {slot.length === 0 ? (
                               <button onClick={() => setPicker({ date, mealType: value })}
-                                className={`text-xs font-medium ${isOver ? 'text-forest-600' : 'text-stone-400 hover:text-forest-600'} hover:underline`}>
+                                className={`text-xs font-medium ${isOver ? 'text-forest-600 dark:text-forest-400' : 'text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400'} hover:underline`}>
                                 {isOver ? '↓ Drop here' : `+ Add ${label.toLowerCase()}`}
                               </button>
                             ) : (
@@ -405,8 +406,8 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                                       onDragStart={() => setDragId(m.id)}
                                       onDragEnd={() => { setDragId(null); setDragOver(null) }}
                                       className={`flex items-center gap-2 group rounded px-1 -mx-1 transition-opacity ${editingId === m.id ? '' : 'cursor-grab active:cursor-grabbing'} ${dragId === m.id ? 'opacity-40' : ''}`}>
-                                      <span className="text-stone-300 text-xs shrink-0 select-none">⠿</span>
-                                      <span className="text-sm text-stone-700 font-medium flex-1 truncate select-none">{m.title}</span>
+                                      <span className="text-stone-300 dark:text-stone-600 text-xs shrink-0 select-none">⠿</span>
+                                      <span className="text-sm text-stone-700 dark:text-stone-200 font-medium flex-1 truncate select-none">{m.title}</span>
                                       {m.ingredientDetails && (
                                         <span className="text-xs text-forest-600 shrink-0 opacity-0 group-hover:opacity-100">✎</span>
                                       )}
@@ -430,7 +431,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                                   </div>
                                 ))}
                                 <button onClick={() => setPicker({ date, mealType: value })}
-                                  className="text-xs text-stone-400 hover:text-forest-600 hover:underline">+ add another</button>
+                                  className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 hover:underline">+ add another</button>
                               </div>
                             )}
                           </div>
@@ -443,7 +444,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
 
               {/* Build shopping list CTA */}
               <div className="card p-4 space-y-3">
-                <p className="text-sm font-semibold text-stone-700">
+                <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">
                   {meals.length} meals planned · {selected.size} selected for shopping
                 </p>
                 {buildMsg && (
@@ -468,15 +469,15 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
           {/* Meal selector */}
           {meals.length > 0 && (
             <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-                <p className="text-sm font-bold text-stone-700">Select meals to shop for</p>
+              <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between">
+                <p className="text-sm font-bold text-stone-700 dark:text-stone-200">Select meals to shop for</p>
                 <div className="flex gap-2 text-xs">
-                  <button onClick={() => setSelected(new Set(meals.map(m => m.id)))} className="text-forest-600 hover:underline font-semibold">All</button>
-                  <span className="text-stone-300">|</span>
-                  <button onClick={() => setSelected(new Set())} className="text-stone-500 hover:underline">None</button>
+                  <button onClick={() => setSelected(new Set(meals.map(m => m.id)))} className="text-forest-600 dark:text-forest-400 hover:underline font-semibold">All</button>
+                  <span className="text-stone-300 dark:text-stone-600">|</span>
+                  <button onClick={() => setSelected(new Set())} className="text-stone-500 dark:text-stone-400 hover:underline">None</button>
                 </div>
               </div>
-              <div className="divide-y divide-stone-50 max-h-64 overflow-y-auto">
+              <div className="divide-y divide-stone-100 dark:divide-stone-800 max-h-64 overflow-y-auto">
                 {dates.flatMap(date => {
                   const dayMeals = meals.filter(m => m.date === date)
                     .sort((a, b) => {
@@ -485,13 +486,13 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                     })
                   if (dayMeals.length === 0) return []
                   return [
-                    <div key={`hd-${date}`} className="px-4 py-1 bg-stone-50">
-                      <p className="text-xs font-semibold text-stone-500">{fmtDate(date)}</p>
+                    <div key={`hd-${date}`} className="px-4 py-1 bg-stone-50 dark:bg-stone-800/60">
+                      <p className="text-xs font-semibold text-stone-500 dark:text-stone-400">{fmtDate(date)}</p>
                     </div>,
                     ...dayMeals.map(m => {
                       const mt = MEAL_TYPES.find(t => t.value === m.mealType)
                       return (
-                        <label key={m.id} className="flex items-center gap-3 px-4 py-2 hover:bg-stone-50 cursor-pointer">
+                        <label key={m.id} className="flex items-center gap-3 px-4 py-2 hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
                           <input type="checkbox" checked={selected.has(m.id)}
                             onChange={() => setSelected(prev => {
                               const n = new Set(prev)
@@ -500,16 +501,16 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                             })}
                             className="rounded border-stone-300 text-forest-600" />
                           <span className="text-sm shrink-0">{mt?.icon}</span>
-                          <span className="text-sm text-stone-700">{m.title}</span>
+                          <span className="text-sm text-stone-700 dark:text-stone-200">{m.title}</span>
                         </label>
                       )
                     }),
                   ]
                 })}
               </div>
-              <div className="px-4 py-3 border-t border-stone-200 bg-stone-50 flex items-center justify-between gap-3">
-                <p className="text-xs text-stone-500">{selected.size} of {meals.length} meals selected</p>
-                {buildMsg && <p className={`text-xs ${buildMsg.startsWith('✓') ? 'text-green-700' : 'text-red-600'}`}>{buildMsg}</p>}
+              <div className="px-4 py-3 border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 flex items-center justify-between gap-3">
+                <p className="text-xs text-stone-500 dark:text-stone-400">{selected.size} of {meals.length} meals selected</p>
+                {buildMsg && <p className={`text-xs ${buildMsg.startsWith('✓') ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{buildMsg}</p>}
                 <button onClick={buildList} disabled={building || selected.size === 0}
                   className="btn-primary text-sm disabled:opacity-40">
                   {building ? 'Building…' : '🛒 Build list'}
@@ -521,23 +522,23 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
           {/* Shopping list */}
           {shopItems.length > 0 ? (
             <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-                <p className="text-sm font-bold text-stone-700">🛒 Shopping List</p>
-                <p className="text-xs text-stone-400">{checkedCount}/{shopItems.length} ticked</p>
+              <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between">
+                <p className="text-sm font-bold text-stone-700 dark:text-stone-200">🛒 Shopping List</p>
+                <p className="text-xs text-stone-400 dark:text-stone-500">{checkedCount}/{shopItems.length} ticked</p>
               </div>
               <div className="p-3 space-y-3 max-h-[500px] overflow-y-auto">
                 {CAT_ORDER.filter(c => byAisle[c].length > 0).map(cat => (
                   <div key={cat}>
-                    <p className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-1.5">{CAT_LABELS[cat]}</p>
+                    <p className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">{CAT_LABELS[cat]}</p>
                     <div className="space-y-0.5">
                       {byAisle[cat].map(item => (
-                        <label key={item.id} className="flex items-center gap-2.5 px-2 py-1 rounded hover:bg-stone-50 cursor-pointer">
+                        <label key={item.id} className="flex items-center gap-2.5 px-2 py-1 rounded hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
                           <input type="checkbox" checked={item.checked} onChange={() => toggleShopItem(item)}
                             className="rounded border-stone-300 text-forest-600 shrink-0" />
-                          <span className={`text-sm flex-1 ${item.checked ? 'line-through text-stone-300' : 'text-stone-700'}`}>
+                          <span className={`text-sm flex-1 ${item.checked ? 'line-through text-stone-300 dark:text-stone-600' : 'text-stone-700 dark:text-stone-200'}`}>
                             {item.name}
                           </span>
-                          {item.quantity && <span className="text-xs text-stone-400 shrink-0">{item.quantity}</span>}
+                          {item.quantity && <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">{item.quantity}</span>}
                         </label>
                       ))}
                     </div>
@@ -548,14 +549,14 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
           ) : meals.length === 0 ? (
             <div className="card p-8 text-center space-y-2">
               <p className="text-3xl">🛒</p>
-              <p className="text-stone-600 font-medium">No meals planned yet</p>
-              <p className="text-sm text-stone-400">Switch to Meal Plan tab to add meals to your trip.</p>
+              <p className="text-stone-600 dark:text-stone-400 font-medium">No meals planned yet</p>
+              <p className="text-sm text-stone-400 dark:text-stone-500">Switch to Meal Plan tab to add meals to your trip.</p>
             </div>
           ) : (
             <div className="card p-8 text-center space-y-2">
               <p className="text-3xl">🛒</p>
-              <p className="text-stone-600 font-medium">Shopping list not built yet</p>
-              <p className="text-sm text-stone-400">Select meals above and click Build list.</p>
+              <p className="text-stone-600 dark:text-stone-400 font-medium">Shopping list not built yet</p>
+              <p className="text-sm text-stone-400 dark:text-stone-500">Select meals above and click Build list.</p>
             </div>
           )}
         </div>
