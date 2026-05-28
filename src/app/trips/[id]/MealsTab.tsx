@@ -173,6 +173,8 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
   const [selected,   setSelected]   = useState<Set<string>>(new Set())
   const [building,   setBuilding]   = useState(false)
   const [buildMsg,   setBuildMsg]   = useState('')
+  const [dragId,     setDragId]     = useState<string | null>(null)
+  const [dragOver,   setDragOver]   = useState<string | null>(null)
 
   // Load trip dates + templates + shopping items
   useEffect(() => {
@@ -221,6 +223,17 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
     const meal: Meal = await res.json()
     setMeals(prev => [...prev, meal])
     setPicker(null)
+  }
+
+  async function moveMeal(mealId: string, newDate: string, newMealType: MealType) {
+    const meal = meals.find(m => m.id === mealId)
+    if (!meal || (meal.date === newDate && meal.mealType === newMealType)) return
+    setMeals(prev => prev.map(m => m.id === mealId ? { ...m, date: newDate, mealType: newMealType } : m))
+    await fetch(`/api/trips/${tripId}/meals/${mealId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: newDate, mealType: newMealType }),
+    })
   }
 
   async function removeMeal(mealId: string) {
@@ -300,20 +313,36 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                   <div className="divide-y divide-stone-50">
                     {MEAL_TYPES.map(({ value, label, icon }) => {
                       const slot = mealMap[`${date}__${value}`] ?? []
+                      const slotKey = `${date}__${value}`
+                      const isOver = dragOver === slotKey && dragId !== null
                       return (
-                        <div key={value} className="flex items-start gap-3 px-4 py-2.5 min-h-[44px]">
+                        <div key={value}
+                          className={`flex items-start gap-3 px-4 py-2.5 min-h-[48px] transition-colors ${isOver ? 'bg-forest-50 border-l-4 border-forest-400' : 'border-l-4 border-transparent'}`}
+                          onDragOver={e => { e.preventDefault(); setDragOver(slotKey) }}
+                          onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null) }}
+                          onDrop={e => {
+                            e.preventDefault()
+                            if (dragId) moveMeal(dragId, date, value)
+                            setDragId(null); setDragOver(null)
+                          }}
+                        >
                           <span className="text-base shrink-0 w-6 text-center mt-0.5">{icon}</span>
                           <div className="flex-1 min-w-0">
                             {slot.length === 0 ? (
                               <button onClick={() => setPicker({ date, mealType: value })}
-                                className="text-xs text-stone-400 hover:text-forest-600 font-medium hover:underline">
-                                + Add {label.toLowerCase()}
+                                className={`text-xs font-medium ${isOver ? 'text-forest-600' : 'text-stone-400 hover:text-forest-600'} hover:underline`}>
+                                {isOver ? '↓ Drop here' : `+ Add ${label.toLowerCase()}`}
                               </button>
                             ) : (
                               <div className="space-y-1">
                                 {slot.map(m => (
-                                  <div key={m.id} className="flex items-center gap-2 group">
-                                    <span className="text-sm text-stone-700 font-medium flex-1 truncate">{m.title}</span>
+                                  <div key={m.id}
+                                    draggable
+                                    onDragStart={() => setDragId(m.id)}
+                                    onDragEnd={() => { setDragId(null); setDragOver(null) }}
+                                    className={`flex items-center gap-2 group rounded px-1 -mx-1 cursor-grab active:cursor-grabbing transition-opacity ${dragId === m.id ? 'opacity-40' : ''}`}>
+                                    <span className="text-stone-300 text-xs shrink-0 select-none">⠿</span>
+                                    <span className="text-sm text-stone-700 font-medium flex-1 truncate select-none">{m.title}</span>
                                     <button onClick={() => removeMeal(m.id)}
                                       className="text-xs text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0">✕</button>
                                   </div>
