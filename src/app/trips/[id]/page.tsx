@@ -116,12 +116,12 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-stone-200 gap-4 overflow-x-auto">
+      <div className="flex border-b border-stone-200 dark:border-stone-700 gap-1 overflow-x-auto -mx-4 px-4">
         {(['overview', 'itinerary', 'packing', 'meals', 'budget'] as Tab[]).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`pb-2 text-sm font-medium whitespace-nowrap transition-all ${tab === t ? 'tab-active' : 'tab-inactive'}`}
+            className={`pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] ${tab === t ? 'tab-active' : 'tab-inactive'}`}
           >
             {t === 'overview' && '📋 Overview'}
             {t === 'itinerary' && `📅 Itinerary`}

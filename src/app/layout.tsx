@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import ThemeToggle from './ThemeToggle'
 
@@ -7,14 +7,20 @@ export const metadata: Metadata = {
   description: 'Turn a camping idea into a ready-to-go trip plan',
 }
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()` }} />
       </head>
-      <body className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-200">
-        <header className="border-b border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900">
+      <body className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <header className="border-b border-stone-200 bg-white shadow-sm dark:border-stone-800 dark:bg-stone-900" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center gap-3">
             <span className="text-2xl">⛺</span>
             <a href="/" className="text-xl font-bold text-forest-800 hover:text-forest-700 dark:text-forest-400 dark:hover:text-forest-300">

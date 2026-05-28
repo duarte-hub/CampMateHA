@@ -63,7 +63,7 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="w-full max-w-md bg-white dark:bg-stone-900 rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col"
+      <div className="w-full max-w-md bg-white dark:bg-stone-900 rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -86,7 +86,7 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
             </div>
 
             {/* Category filter */}
-            <div className="flex gap-1.5 px-4 py-2 overflow-x-auto scrollbar-hide">
+            <div className="flex flex-wrap gap-1.5 px-4 py-2">
               {(['all', ...MEAL_TYPES.map(t => t.value), 'custom'] as (MealType | 'all' | 'custom')[]).map(v => (
                 <button key={v} onClick={() => setFilter(v)}
                   className={`shrink-0 text-xs px-3 py-1 rounded-full font-semibold border transition-colors ${
@@ -125,9 +125,9 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
             </div>
 
             {/* Add custom */}
-            <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800">
+            <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 12px)' }}>
               <button onClick={() => setCustom(true)}
-                className="w-full text-sm text-forest-700 dark:text-forest-400 font-semibold hover:underline text-center">
+                className="w-full text-sm text-forest-700 dark:text-forest-400 font-semibold hover:underline text-center py-1">
                 + Create custom meal
               </button>
             </div>
@@ -316,6 +316,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
   }
 
   async function clearAll() {
+    if (!confirm('Clear all meals from every day? This cannot be undone.')) return
     await Promise.all(meals.map(m => fetch(`/api/trips/${tripId}/meals/${m.id}`, { method: 'DELETE' })))
     setMeals([])
   }

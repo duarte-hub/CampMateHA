@@ -22,7 +22,7 @@
     @apply rounded-xl border border-stone-200 bg-white shadow-sm dark:border-stone-700 dark:bg-stone-900;
   }
   .input {
-    @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-forest-600 focus:outline-none focus:ring-2 focus:ring-forest-600/20 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-forest-500;
+    @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base sm:text-sm shadow-sm focus:border-forest-600 focus:outline-none focus:ring-2 focus:ring-forest-600/20 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100 dark:placeholder:text-stone-500 dark:focus:border-forest-500;
   }
   .label {
     @apply block text-sm font-medium text-stone-700 mb-1 dark:text-stone-300;
