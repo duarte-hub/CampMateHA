@@ -305,6 +305,24 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
     setMeals(prev => prev.filter(m => m.id !== mealId))
   }
 
+  async function clearDay(date: string) {
+    const dayMeals = meals.filter(m => m.date === date)
+    await Promise.all(dayMeals.map(m => fetch(`/api/trips/${tripId}/meals/${m.id}`, { method: 'DELETE' })))
+    setMeals(prev => prev.filter(m => m.date !== date))
+  }
+
+  async function untickAll() {
+    const toUntick = shopItems.filter(s => s.checked)
+    setShopItems(prev => prev.map(s => ({ ...s, checked: false })))
+    await Promise.all(toUntick.map(item =>
+      fetch(`/api/trips/${tripId}/shopping-list/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checked: false }),
+      })
+    ))
+  }
+
   async function buildList() {
     if (selected.size === 0) return
     setBuilding(true); setBuildMsg('')
@@ -373,7 +391,13 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                 <div key={date} className="card overflow-hidden border-l-4 border-l-forest-600 dark:border-l-forest-500">
                   <div className="px-4 py-3 bg-forest-50 dark:bg-stone-800 border-b border-forest-100 dark:border-stone-700 flex items-center gap-3">
                     <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-forest-600 dark:bg-forest-500 text-white text-xs font-bold shrink-0">{di + 1}</span>
-                    <h4 className="font-bold text-sm text-stone-800 dark:text-stone-100">{fmtDate(date)}</h4>
+                    <h4 className="font-bold text-sm text-stone-800 dark:text-stone-100 flex-1">{fmtDate(date)}</h4>
+                    {meals.some(m => m.date === date) && (
+                      <button onClick={() => clearDay(date)}
+                        className="text-xs text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                        Clear day
+                      </button>
+                    )}
                   </div>
                   <div className="divide-y divide-stone-100 dark:divide-stone-800">
                     {MEAL_TYPES.map(({ value, label, icon }) => {
@@ -486,10 +510,22 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                       return (order[a.mealType] ?? 4) - (order[b.mealType] ?? 4)
                     })
                   if (dayMeals.length === 0) return []
+                  const allDay  = dayMeals.every(m => selected.has(m.id))
+                  const someDay = dayMeals.some(m => selected.has(m.id))
                   return [
-                    <div key={`hd-${date}`} className="px-4 py-1 bg-stone-50 dark:bg-stone-800/60">
-                      <p className="text-xs font-semibold text-stone-500 dark:text-stone-400">{fmtDate(date)}</p>
-                    </div>,
+                    <label key={`hd-${date}`}
+                      className="flex items-center gap-3 px-4 py-1.5 bg-stone-100 dark:bg-stone-800 cursor-pointer hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors">
+                      <input type="checkbox"
+                        ref={el => { if (el) el.indeterminate = someDay && !allDay }}
+                        checked={allDay}
+                        onChange={() => setSelected(prev => {
+                          const n = new Set(prev)
+                          dayMeals.forEach(m => allDay ? n.delete(m.id) : n.add(m.id))
+                          return n
+                        })}
+                        className="rounded border-stone-300 text-forest-600" />
+                      <p className="text-xs font-bold text-stone-600 dark:text-stone-300">{fmtDate(date)}</p>
+                    </label>,
                     ...dayMeals.map(m => {
                       const mt = MEAL_TYPES.find(t => t.value === m.mealType)
                       return (
@@ -523,9 +559,17 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
           {/* Shopping list */}
           {shopItems.length > 0 ? (
             <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between">
+              <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between gap-3">
                 <p className="text-sm font-bold text-stone-700 dark:text-stone-200">🛒 Shopping List</p>
-                <p className="text-xs text-stone-400 dark:text-stone-500">{checkedCount}/{shopItems.length} ticked</p>
+                <div className="flex items-center gap-3">
+                  {checkedCount > 0 && (
+                    <button onClick={untickAll}
+                      className="text-xs text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-100 hover:underline">
+                      Untick all
+                    </button>
+                  )}
+                  <p className="text-xs text-stone-400 dark:text-stone-500">{checkedCount}/{shopItems.length} ticked</p>
+                </div>
               </div>
               <div className="p-3 space-y-3 max-h-[500px] overflow-y-auto">
                 {CAT_ORDER.filter(c => byAisle[c].length > 0).map(cat => (
