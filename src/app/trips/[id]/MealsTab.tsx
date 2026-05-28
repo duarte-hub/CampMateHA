@@ -221,6 +221,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
   const [selected,   setSelected]   = useState<Set<string>>(new Set())
   const [building,   setBuilding]   = useState(false)
   const [buildMsg,   setBuildMsg]   = useState('')
+  const [shopView,   setShopView]   = useState<'aisle' | 'flat' | 'meal'>('aisle')
   const [dragId,     setDragId]     = useState<string | null>(null)
   const [dragOver,   setDragOver]   = useState<string | null>(null)
   const [editingId,  setEditingId]  = useState<string | null>(null)
@@ -577,36 +578,98 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
           {/* Shopping list */}
           {shopItems.length > 0 ? (
             <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between gap-3">
-                <p className="text-sm font-bold text-stone-700 dark:text-stone-200">🛒 Shopping List</p>
-                <div className="flex items-center gap-3">
-                  {checkedCount > 0 && (
-                    <button onClick={untickAll}
-                      className="text-xs text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-100 hover:underline">
-                      Untick all
+              {/* Header */}
+              <div className="px-4 pt-2.5 pb-2 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-bold text-stone-700 dark:text-stone-200">🛒 Shopping List</p>
+                  <div className="flex items-center gap-3">
+                    {checkedCount > 0 && (
+                      <button onClick={untickAll}
+                        className="text-xs text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-100 hover:underline">
+                        Untick all
+                      </button>
+                    )}
+                    <p className="text-xs text-stone-400 dark:text-stone-500">{checkedCount}/{shopItems.length} ticked</p>
+                  </div>
+                </div>
+                {/* View toggle */}
+                <div className="flex rounded-lg overflow-hidden border border-stone-200 dark:border-stone-700 text-xs font-semibold">
+                  {(['aisle', 'flat', 'meal'] as const).map(v => (
+                    <button key={v} onClick={() => setShopView(v)}
+                      className={`flex-1 py-1.5 transition-colors ${shopView === v ? 'bg-forest-600 text-white' : 'text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700'}`}>
+                      {v === 'aisle' ? 'By Aisle' : v === 'flat' ? 'Flat List' : 'By Meal'}
                     </button>
-                  )}
-                  <p className="text-xs text-stone-400 dark:text-stone-500">{checkedCount}/{shopItems.length} ticked</p>
+                  ))}
                 </div>
               </div>
+
               <div className="p-3 space-y-3 max-h-[500px] overflow-y-auto">
-                {CAT_ORDER.filter(c => byAisle[c].length > 0).map(cat => (
+
+                {/* ── By Aisle ── */}
+                {shopView === 'aisle' && CAT_ORDER.filter(c => byAisle[c].length > 0).map(cat => (
                   <div key={cat}>
                     <p className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5">{CAT_LABELS[cat]}</p>
                     <div className="space-y-0.5">
                       {byAisle[cat].map(item => (
-                        <label key={item.id} className="flex items-center gap-2.5 px-2 py-1 rounded hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
+                        <label key={item.id} className="flex items-start gap-2.5 px-2 py-1.5 rounded hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
                           <input type="checkbox" checked={item.checked} onChange={() => toggleShopItem(item)}
-                            className="rounded border-stone-300 text-forest-600 shrink-0" />
-                          <span className={`text-sm flex-1 ${item.checked ? 'line-through text-stone-300 dark:text-stone-600' : 'text-stone-700 dark:text-stone-200'}`}>
-                            {item.name}
-                          </span>
-                          {item.quantity && <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">{item.quantity}</span>}
+                            className="rounded border-stone-300 text-forest-600 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`text-sm ${item.checked ? 'line-through text-stone-300 dark:text-stone-600' : 'text-stone-700 dark:text-stone-200'}`}>{item.name}</span>
+                              {item.quantity && <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">{item.quantity}</span>}
+                            </div>
+                            {item.mealRef && <p className="text-xs text-stone-400 dark:text-stone-500 truncate">{item.mealRef}</p>}
+                          </div>
                         </label>
                       ))}
                     </div>
                   </div>
                 ))}
+
+                {/* ── Flat List ── */}
+                {shopView === 'flat' && (
+                  <div className="space-y-0.5">
+                    {[...shopItems].sort((a, b) => a.name.localeCompare(b.name)).map(item => (
+                      <label key={item.id} className="flex items-start gap-2.5 px-2 py-1.5 rounded hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
+                        <input type="checkbox" checked={item.checked} onChange={() => toggleShopItem(item)}
+                          className="rounded border-stone-300 text-forest-600 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-sm ${item.checked ? 'line-through text-stone-300 dark:text-stone-600' : 'text-stone-700 dark:text-stone-200'}`}>{item.name}</span>
+                            {item.quantity && <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">{item.quantity}</span>}
+                          </div>
+                          {item.mealRef && <p className="text-xs text-stone-400 dark:text-stone-500 truncate">{item.mealRef}</p>}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── By Meal ── */}
+                {shopView === 'meal' && (() => {
+                  const byMeal = shopItems.reduce<Record<string, ShoppingItem[]>>((acc, item) => {
+                    const key = item.mealRef || 'Other'
+                    ;(acc[key] ??= []).push(item)
+                    return acc
+                  }, {})
+                  return Object.entries(byMeal).map(([mealName, items]) => (
+                    <div key={mealName}>
+                      <p className="text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wide mb-1.5 truncate">{mealName}</p>
+                      <div className="space-y-0.5">
+                        {items.map(item => (
+                          <label key={item.id} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
+                            <input type="checkbox" checked={item.checked} onChange={() => toggleShopItem(item)}
+                              className="rounded border-stone-300 text-forest-600 shrink-0" />
+                            <span className={`text-sm flex-1 ${item.checked ? 'line-through text-stone-300 dark:text-stone-600' : 'text-stone-700 dark:text-stone-200'}`}>{item.name}</span>
+                            {item.quantity && <span className="text-xs text-stone-400 dark:text-stone-500 shrink-0">{item.quantity}</span>}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                })()}
+
               </div>
             </div>
           ) : meals.length === 0 ? (
