@@ -48,7 +48,7 @@ interface PickerProps {
 }
 
 function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: PickerProps) {
-  const [filter,  setFilter]  = useState<MealType | 'all'>(defaultType)
+  const [filter,  setFilter]  = useState<MealType | 'all' | 'custom'>(defaultType)
   const [search,  setSearch]  = useState('')
   const [custom,  setCustom]  = useState(false)
   const [cName,   setCName]   = useState('')
@@ -56,7 +56,7 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
   const [cNotes,  setCNotes]  = useState('')
 
   const visible = templates.filter(t => {
-    const matchType = filter === 'all' || t.mealType === filter
+    const matchType = filter === 'all' || (filter === 'custom' ? t.isCustom : t.mealType === filter)
     const matchSearch = !search || t.name.toLowerCase().includes(search.toLowerCase())
     return matchType && matchSearch
   })
@@ -87,10 +87,14 @@ function MealPicker({ templates, onPick, onCustom, defaultType, onClose }: Picke
 
             {/* Category filter */}
             <div className="flex gap-1.5 px-4 py-2 overflow-x-auto scrollbar-hide">
-              {(['all', ...MEAL_TYPES.map(t => t.value)] as (MealType | 'all')[]).map(v => (
+              {(['all', ...MEAL_TYPES.map(t => t.value), 'custom'] as (MealType | 'all' | 'custom')[]).map(v => (
                 <button key={v} onClick={() => setFilter(v)}
-                  className={`shrink-0 text-xs px-3 py-1 rounded-full font-semibold border transition-colors ${filter === v ? 'bg-forest-600 text-white border-forest-600' : 'border-stone-300 text-stone-600 hover:border-forest-400 dark:border-stone-600 dark:text-stone-300 dark:hover:border-forest-500'}`}>
-                  {v === 'all' ? 'All' : MEAL_TYPES.find(t => t.value === v)!.icon + ' ' + MEAL_TYPES.find(t => t.value === v)!.label}
+                  className={`shrink-0 text-xs px-3 py-1 rounded-full font-semibold border transition-colors ${
+                    filter === v
+                      ? v === 'custom' ? 'bg-amber-500 text-white border-amber-500' : 'bg-forest-600 text-white border-forest-600'
+                      : 'border-stone-300 text-stone-600 hover:border-forest-400 dark:border-stone-600 dark:text-stone-300 dark:hover:border-forest-500'
+                  }`}>
+                  {v === 'all' ? 'All' : v === 'custom' ? '⭐ My Meals' : MEAL_TYPES.find(t => t.value === v)!.icon + ' ' + MEAL_TYPES.find(t => t.value === v)!.label}
                 </button>
               ))}
             </div>
