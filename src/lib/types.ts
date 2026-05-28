@@ -51,9 +51,25 @@ export interface Meal {
   title: string
   notes: string
   ingredients?: string[]
+  templateId?: string
 }
 
 export type ShopCategory = 'produce' | 'meat' | 'dairy' | 'bakery' | 'pantry' | 'frozen' | 'drinks' | 'other'
+
+export interface MealIngredient {
+  name: string
+  quantity: string
+  category: ShopCategory
+}
+
+export interface MealTemplate {
+  id: string
+  name: string
+  mealType: MealType
+  ingredients: MealIngredient[]
+  notes?: string
+  isCustom?: boolean
+}
 
 export interface ShoppingItem {
   id: string
@@ -131,4 +147,5 @@ export interface AppDatabase {
   reminders: Reminder[]
   waypoints: Waypoint[]
   shoppingItems: ShoppingItem[]
+  mealTemplates: MealTemplate[]
 }
