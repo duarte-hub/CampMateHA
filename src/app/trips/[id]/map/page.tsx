@@ -26,10 +26,13 @@ function navLinks(lat: number, lng: number, name: string) {
   }
 }
 
-function markerHtml(icon: string, color: string, num: number, dayLabel?: string) {
-  const pinH = 36
+function markerHtml(icon: string, color: string, num: number, dayLabel?: string, nights?: number) {
+  const subLabel = [
+    dayLabel,
+    nights !== undefined ? (nights === 0 ? 'transit' : `${nights}🌙`) : undefined,
+  ].filter(Boolean).join(' · ')
   return `<div style="position:relative;width:36px;text-align:center">
-    <div style="width:${pinH}px;height:${pinH}px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+    <div style="width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
       background:${color};border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.35);
       display:flex;align-items:center;justify-content:center;">
       <span style="transform:rotate(45deg);font-size:15px;line-height:1">${icon}</span>
@@ -38,9 +41,9 @@ function markerHtml(icon: string, color: string, num: number, dayLabel?: string)
       font-size:10px;font-weight:700;width:16px;height:16px;border-radius:50%;
       border:1.5px solid ${color};display:flex;align-items:center;justify-content:center;
       box-shadow:0 1px 3px rgba(0,0,0,.2);">${num}</div>
-    ${dayLabel ? `<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
+    ${subLabel ? `<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
       background:rgba(30,30,30,.8);color:white;font-size:9px;font-weight:600;
-      padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none">${dayLabel}</div>` : ''}
+      padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none">${subLabel}</div>` : ''}
   </div>`
 }
 
@@ -136,7 +139,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
 
     import('leaflet').then(({ default: L }) => {
       if (!mapRef.current || mapObj.current) return
-      const map = L.map(mapRef.current, { zoomControl: false }).setView([-25.5, 134], 5)
+      const map = L.map(mapRef.current, { zoomControl: false, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 80, wheelDebounceTime: 20 }).setView([-25.5, 134], 5)
       L.control.zoom({ position: 'bottomright' }).addTo(map)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -193,12 +196,14 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
         const dayLabel = dates[idx]
           ? dates[idx].split(' ').slice(0, 2).join(' ')  // "Mon 16 Jun" → "Mon 16"
           : undefined
+        const nights = wp.nights ?? 1
+        const hasSubLabel = !!(dayLabel || nights !== undefined)
         const icon = L.divIcon({
           className: '',
-          html: markerHtml(t.icon, t.color, idx + 1, dayLabel),
-          iconSize: [36, dayLabel ? 56 : 42],
-          iconAnchor: [18, dayLabel ? 56 : 42],
-          popupAnchor: [0, dayLabel ? -58 : -44],
+          html: markerHtml(t.icon, t.color, idx + 1, dayLabel, nights),
+          iconSize: [36, hasSubLabel ? 56 : 42],
+          iconAnchor: [18, hasSubLabel ? 56 : 42],
+          popupAnchor: [0, hasSubLabel ? -58 : -44],
         })
         const nav = navLinks(wp.lat, wp.lng, wp.name)
         const marker = L.marker([wp.lat, wp.lng], { icon, draggable: true } as import('leaflet').MarkerOptions)
