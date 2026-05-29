@@ -16,6 +16,7 @@ const empty: AppDatabase = {
   waypoints: [],
   shoppingItems: [],
   mealTemplates: [],
+  packingTemplates: [],
 }
 
 function ensureDir() {

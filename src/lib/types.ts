@@ -139,6 +139,13 @@ export interface AppSettings {
   dietaryRestrictions?: string[]
 }
 
+export interface PackingTemplate {
+  id: string
+  name: string
+  category: string
+  quantity: number
+}
+
 export interface AppDatabase {
   trips: Trip[]
   itineraryDays: ItineraryDay[]
@@ -149,4 +156,5 @@ export interface AppDatabase {
   waypoints: Waypoint[]
   shoppingItems: ShoppingItem[]
   mealTemplates: MealTemplate[]
+  packingTemplates: PackingTemplate[]
 }

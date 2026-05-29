@@ -24,6 +24,9 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [newItem, setNewItem] = useState('')
   const [newCategory, setNewCategory] = useState('Custom')
   const [deleting, setDeleting] = useState(false)
+  const [loadingLib, setLoadingLib] = useState(false)
+  const [savingLib, setSavingLib] = useState(false)
+  const [libMsg, setLibMsg] = useState('')
 
   async function load() {
     const res = await fetch(`/api/trips/${id}`)
@@ -56,6 +59,49 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
     const item = await res.json()
     setTrip(t => t ? { ...t, packingItems: [...t.packingItems, item] } : t)
     setNewItem('')
+  }
+
+  async function loadFromLibrary() {
+    setLoadingLib(true)
+    setLibMsg('')
+    try {
+      const lib = await fetch('/api/packing-library').then(r => r.json())
+      const existing = new Set(trip!.packingItems.map(i => i.name.toLowerCase()))
+      const toAdd = lib.filter((t: { name: string }) => !existing.has(t.name.toLowerCase()))
+      for (const t of toAdd) {
+        const res = await fetch(`/api/trips/${id}/packing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: t.name, category: t.category, quantity: t.quantity }),
+        })
+        const item = await res.json()
+        setTrip(prev => prev ? { ...prev, packingItems: [...prev.packingItems, item] } : prev)
+      }
+      setLibMsg(toAdd.length > 0 ? `✓ Added ${toAdd.length} item${toAdd.length !== 1 ? 's' : ''} from library` : '✓ All library items already in list')
+    } catch {
+      setLibMsg('Failed to load from library')
+    }
+    setLoadingLib(false)
+    setTimeout(() => setLibMsg(''), 4000)
+  }
+
+  async function saveToLibrary() {
+    if (!confirm('Replace the packing library with this trip\'s current list?')) return
+    setSavingLib(true)
+    setLibMsg('')
+    try {
+      const payload = trip!.packingItems.map(i => ({ name: i.name, category: i.category, quantity: i.quantity }))
+      await fetch('/api/packing-library', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      setLibMsg(`✓ Saved ${payload.length} items to library`)
+    } catch {
+      setLibMsg('Failed to save to library')
+    }
+    setSavingLib(false)
+    setTimeout(() => setLibMsg(''), 4000)
   }
 
   async function deleteTrip() {
@@ -232,6 +278,29 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
               onChange={e => setNewCategory(e.target.value)}
             />
             <button onClick={addPackingItem} className="btn-primary text-sm px-3">Add</button>
+          </div>
+
+          {/* Library actions */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={loadFromLibrary}
+              disabled={loadingLib}
+              className="btn-secondary text-sm disabled:opacity-40"
+            >
+              {loadingLib ? 'Loading…' : '📦 Load from library'}
+            </button>
+            <button
+              onClick={saveToLibrary}
+              disabled={savingLib}
+              className="btn-secondary text-sm disabled:opacity-40"
+            >
+              {savingLib ? 'Saving…' : '💾 Save list to library'}
+            </button>
+            {libMsg && (
+              <span className={`text-sm font-medium px-3 py-2 rounded-lg ${libMsg.startsWith('✓') ? 'text-forest-700 dark:text-forest-400 bg-forest-50 dark:bg-forest-900/30' : 'text-red-600 bg-red-50'}`}>
+                {libMsg}
+              </span>
+            )}
           </div>
 
           {/* Progress */}
