@@ -61,6 +61,11 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
     setNewItem('')
   }
 
+  async function deletePackingItem(itemId: string) {
+    await fetch(`/api/trips/${id}/packing/${itemId}`, { method: 'DELETE' })
+    setTrip(t => t ? { ...t, packingItems: t.packingItems.filter(i => i.id !== itemId) } : t)
+  }
+
   async function loadFromLibrary() {
     setLoadingLib(true)
     setLibMsg('')
@@ -326,19 +331,29 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
               </div>
               <div className="divide-y divide-stone-50 dark:divide-stone-800">
                 {items.map(item => (
-                  <label key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/40 cursor-pointer transition-colors">
+                  <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors group">
                     <input
                       type="checkbox"
                       checked={item.checked}
                       onChange={() => togglePacking(item)}
-                      className="rounded border-stone-300 dark:border-stone-600 text-forest-600 focus:ring-forest-500"
+                      className="rounded border-stone-300 dark:border-stone-600 text-forest-600 focus:ring-forest-500 cursor-pointer"
                     />
-                    <span className={`flex-1 text-sm ${item.checked ? 'line-through text-stone-400 dark:text-stone-600' : 'text-stone-700 dark:text-stone-300'}`}>
+                    <span
+                      className={`flex-1 text-sm cursor-pointer select-none ${item.checked ? 'line-through text-stone-400 dark:text-stone-600' : 'text-stone-700 dark:text-stone-300'}`}
+                      onClick={() => togglePacking(item)}
+                    >
                       {item.name}
                       {item.quantity > 1 && <span className="text-stone-400 dark:text-stone-500 ml-1">×{item.quantity}</span>}
                     </span>
-                    {item.isCustom && <span className="text-xs text-stone-300 dark:text-stone-600">custom</span>}
-                  </label>
+                    {item.isCustom && <span className="text-xs text-stone-300 dark:text-stone-600 mr-1">custom</span>}
+                    <button
+                      onClick={() => deletePackingItem(item.id)}
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-all text-sm w-6 h-6 flex items-center justify-center rounded"
+                      title="Remove item"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
