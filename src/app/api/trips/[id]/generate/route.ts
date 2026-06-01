@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readDb, writeDb } from '@/lib/db'
+import { readDb, writeDb, readSettings } from '@/lib/db'
 import {
   generatePackingList,
   generateItinerary,
@@ -23,11 +23,14 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
   db.budgetItems = db.budgetItems.filter(b => b.tripId !== id)
   db.reminders = db.reminders.filter(r => r.tripId !== id)
 
+  const settings  = readSettings()
+  const waypoints = db.waypoints.filter(w => w.tripId === id)
+
   // Generate and insert
   db.itineraryDays.push(...generateItinerary(trip))
   db.packingItems.push(...generatePackingList(trip))
   db.meals.push(...generateMeals(trip))
-  db.budgetItems.push(...generateBudget(trip))
+  db.budgetItems.push(...generateBudget(trip, settings, waypoints))
   db.reminders.push(...generateReminders(trip))
 
   writeDb(db)
