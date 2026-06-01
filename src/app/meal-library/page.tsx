@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import type { MealTemplate, MealType, MealIngredient, ShopCategory } from '@/lib/types'
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
@@ -52,6 +53,7 @@ function IngEditor({
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function MealLibraryPage() {
+  const router = useRouter()
   const [templates, setTemplates]     = useState<MealTemplate[]>([])
   const [search,    setSearch]        = useState('')
   const [filter,    setFilter]        = useState<MealType | 'all'>('all')
@@ -137,7 +139,10 @@ export default function MealLibraryPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
-      {/* Header */}
+      {/* Back + Header */}
+      <button onClick={() => router.back()} className="text-xs font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
+        ← Back
+      </button>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Meal Library</h1>

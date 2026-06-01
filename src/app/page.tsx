@@ -62,7 +62,12 @@ export default function HomePage() {
 
       {!loading && upcoming.length > 0 && (
         <section>
-          <h2 className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest mb-3">Upcoming trips</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-widest">Upcoming trips</h2>
+            <Link href="/calendar" className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 transition-colors">
+              📅 Calendar view
+            </Link>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {upcoming.map(trip => <TripCard key={trip.id} trip={trip} />)}
           </div>

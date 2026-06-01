@@ -301,6 +301,9 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             >
               {savingLib ? 'Saving…' : '💾 Save list to library'}
             </button>
+            <Link href="/packing-library" className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 transition-colors self-center ml-auto">
+              Manage library →
+            </Link>
             {libMsg && (
               <span className={`text-sm font-medium px-3 py-2 rounded-lg ${libMsg.startsWith('✓') ? 'text-forest-700 dark:text-forest-400 bg-forest-50 dark:bg-forest-900/30' : 'text-red-600 bg-red-50'}`}>
                 {libMsg}
@@ -362,7 +365,16 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       )}
 
       {/* Meals Tab */}
-      {tab === 'meals' && <MealsTab tripId={trip.id} initialMeals={trip.meals} />}
+      {tab === 'meals' && (
+        <div className="space-y-4">
+          <MealsTab tripId={trip.id} initialMeals={trip.meals} />
+          <div className="text-center">
+            <Link href="/meal-library" className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 transition-colors">
+              Manage meal library →
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Budget Tab */}
       {tab === 'budget' && (
