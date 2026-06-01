@@ -229,6 +229,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
   const [building,   setBuilding]   = useState(false)
   const [buildMsg,   setBuildMsg]   = useState('')
   const [shopView,   setShopView]   = useState<'aisle' | 'flat' | 'meal'>('aisle')
+  const [planView,   setPlanView]   = useState<'day' | 'all'>('day')
   const [dragId,     setDragId]     = useState<string | null>(null)
   const [dragOver,   setDragOver]   = useState<string | null>(null)
   const [editingId,  setEditingId]  = useState<string | null>(null)
@@ -405,15 +406,61 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
             </div>
           ) : (
             <>
-              {meals.length > 0 && (
-                <div className="flex justify-end">
-                  <button onClick={clearAll}
-                    className="text-xs text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-                    Clear all days
+              {/* View toggle + clear */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex rounded-lg overflow-hidden border border-stone-200 dark:border-stone-700 text-xs font-semibold">
+                  <button onClick={() => setPlanView('day')}
+                    className={`px-3 py-1.5 transition-colors ${planView === 'day' ? 'bg-forest-600 text-white' : 'text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700'}`}>
+                    By day
+                  </button>
+                  <button onClick={() => setPlanView('all')}
+                    className={`px-3 py-1.5 transition-colors ${planView === 'all' ? 'bg-forest-600 text-white' : 'text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-700'}`}>
+                    All meals {meals.length > 0 && `(${meals.length})`}
                   </button>
                 </div>
+                {meals.length > 0 && (
+                  <button onClick={clearAll}
+                    className="text-xs text-stone-400 dark:text-stone-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              {/* ── All meals flat list ── */}
+              {planView === 'all' && (
+                <div className="space-y-1.5">
+                  {meals.length === 0 ? (
+                    <div className="card p-8 text-center text-stone-400">
+                      <p className="text-3xl mb-2">🍽</p>
+                      <p className="text-sm">No meals planned yet — switch to By day to add meals.</p>
+                    </div>
+                  ) : (
+                    [...meals].sort((a, b) => {
+                      if (a.date !== b.date) return a.date.localeCompare(b.date)
+                      const order: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2, snack: 3 }
+                      return (order[a.mealType] ?? 4) - (order[b.mealType] ?? 4)
+                    }).map(m => {
+                      const mt = MEAL_TYPES.find(t => t.value === m.mealType)
+                      return (
+                        <div key={m.id}
+                          style={{ borderLeftColor: MEAL_ACCENT[m.mealType] }}
+                          className="card border-l-4 flex items-center gap-3 px-4 py-2.5 group">
+                          <span className="text-base shrink-0">{mt?.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-stone-800 dark:text-stone-100 truncate">{m.title}</p>
+                            <p className="text-xs text-stone-400 dark:text-stone-500">{fmtDate(m.date)} · {mt?.label}</p>
+                          </div>
+                          <button onClick={() => removeMeal(m.id)}
+                            className="opacity-0 group-hover:opacity-100 text-stone-300 hover:text-red-500 dark:hover:text-red-400 text-xs transition-all shrink-0">✕</button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
               )}
-              {dates.map((date, di) => (
+
+              {/* ── By day ── */}
+              {planView === 'day' && dates.map((date, di) => (
                 <div key={date} className="card overflow-hidden border-l-4 border-l-forest-600 dark:border-l-forest-500">
                   <div className="px-4 py-3 bg-forest-50 dark:bg-stone-800 border-b border-forest-100 dark:border-stone-700 flex items-center gap-3">
                     <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-forest-600 dark:bg-forest-500 text-white text-xs font-bold shrink-0">{di + 1}</span>
@@ -495,21 +542,23 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
               ))}
 
               {/* Build shopping list CTA */}
-              <div className="card p-4 space-y-3">
-                <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                  {meals.length} meals planned · {selected.size} selected for shopping
-                </p>
-                {buildMsg && (
-                  <p className={`text-xs rounded p-2 ${buildMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{buildMsg}</p>
-                )}
-                <button onClick={buildList} disabled={building || selected.size === 0}
-                  className="btn-primary w-full justify-center text-sm disabled:opacity-40">
-                  {building ? '⏳ Building…' : '🛒 Build Shopping List'}
-                </button>
-                <p className="text-xs text-stone-400 text-center">
-                  Switch to Shopping List tab to choose which meals to include
-                </p>
-              </div>
+              {planView === 'day' && (
+                <div className="card p-4 space-y-3">
+                  <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">
+                    {meals.length} meals planned · {selected.size} selected for shopping
+                  </p>
+                  {buildMsg && (
+                    <p className={`text-xs rounded p-2 ${buildMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{buildMsg}</p>
+                  )}
+                  <button onClick={buildList} disabled={building || selected.size === 0}
+                    className="btn-primary w-full justify-center text-sm disabled:opacity-40">
+                    {building ? '⏳ Building…' : '🛒 Build Shopping List'}
+                  </button>
+                  <p className="text-xs text-stone-400 text-center">
+                    Switch to Shopping List tab to choose which meals to include
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>
