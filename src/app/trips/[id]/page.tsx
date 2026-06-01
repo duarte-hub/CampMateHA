@@ -135,9 +135,6 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Link href={`/trips/${id}/map`} className="btn-secondary text-xs">
-            🗺️ Map
-          </Link>
           <Link href={`/trips/${id}/share`} className="btn-secondary text-xs">
             Share
           </Link>
@@ -162,6 +159,12 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             {t === 'budget' && '💰 Budget'}
           </button>
         ))}
+        <Link
+          href={`/trips/${id}/map`}
+          className="pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] tab-inactive"
+        >
+          🗺️ Map
+        </Link>
       </div>
 
       {/* Overview Tab */}
