@@ -176,7 +176,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
         ))}
         <Link
           href={`/trips/${id}/map`}
-          className="pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] tab-inactive"
+          className="inline-flex items-center pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] tab-inactive"
         >
           🗺️ Map
         </Link>

@@ -10,11 +10,11 @@ const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
   { value: 'snack',     label: 'Snack',     icon: '🍫' },
 ]
 
-const MEAL_BORDER: Record<MealType, string> = {
-  breakfast: 'border-l-amber-400 dark:border-l-amber-500',
-  lunch:     'border-l-sky-400 dark:border-l-sky-500',
-  dinner:    'border-l-forest-500 dark:border-l-forest-400',
-  snack:     'border-l-stone-300 dark:border-l-stone-600',
+const MEAL_ACCENT: Record<MealType, string> = {
+  breakfast: '#fbbf24', // amber-400
+  lunch:     '#38bdf8', // sky-400
+  dinner:    '#16a34a', // forest-600
+  snack:     '#a8a29e', // stone-400
 }
 
 const CAT_LABELS: Record<ShopCategory, string> = {
@@ -432,7 +432,8 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                       const isOver = dragOver === slotKey && dragId !== null
                       return (
                         <div key={value}
-                          className={`flex items-start gap-3 px-4 py-2.5 min-h-[48px] transition-colors border-l-4 ${MEAL_BORDER[value]} ${isOver ? 'bg-forest-50 dark:bg-forest-900/30' : ''}`}
+                          style={{ borderLeftColor: MEAL_ACCENT[value] }}
+                          className={`flex items-start gap-3 px-4 py-2.5 min-h-[48px] transition-colors border-l-4 ${isOver ? 'bg-forest-50 dark:bg-forest-900/30' : ''}`}
                           onDragOver={e => { e.preventDefault(); setDragOver(slotKey) }}
                           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null) }}
                           onDrop={e => {
