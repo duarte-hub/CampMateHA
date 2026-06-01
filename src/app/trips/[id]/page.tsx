@@ -25,7 +25,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [newCategory, setNewCategory] = useState('Custom')
   const [deleting, setDeleting] = useState(false)
   const [loadingLib, setLoadingLib] = useState(false)
-  const [savingLib, setSavingLib] = useState(false)
+
   const [libMsg, setLibMsg] = useState('')
 
   async function load() {
@@ -87,25 +87,6 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       setLibMsg('Failed to load from library')
     }
     setLoadingLib(false)
-    setTimeout(() => setLibMsg(''), 4000)
-  }
-
-  async function saveToLibrary() {
-    if (!confirm('Replace the packing library with this trip\'s current list?')) return
-    setSavingLib(true)
-    setLibMsg('')
-    try {
-      const payload = trip!.packingItems.map(i => ({ name: i.name, category: i.category, quantity: i.quantity }))
-      await fetch('/api/packing-library', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      setLibMsg(`✓ Saved ${payload.length} items to library`)
-    } catch {
-      setLibMsg('Failed to save to library')
-    }
-    setSavingLib(false)
     setTimeout(() => setLibMsg(''), 4000)
   }
 
@@ -208,7 +189,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             )}
           </div>
 
-          {/* Trip details */}
+          {/* Trip details + reminders */}
           <div className="card p-4 space-y-2 text-sm">
             <h3 className="font-semibold text-stone-800 dark:text-stone-200 mb-3">Trip details</h3>
             <Detail label="Camping style" value={trip.campingStyle.replace('_', ' ')} />
@@ -216,23 +197,20 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             <Detail label="Experience" value={trip.experienceLevel} />
             <Detail label="Activities" value={trip.activities.join(', ') || 'None'} />
             {trip.notes && <Detail label="Notes" value={trip.notes} />}
+            {trip.reminders.length > 0 && (
+              <div className="pt-3 space-y-2 border-t border-stone-100 dark:border-stone-700 mt-2">
+                {trip.reminders.sort((a, b) => {
+                  const order = { critical: 0, warning: 1, info: 2 }
+                  return order[a.severity] - order[b.severity]
+                }).map(r => (
+                  <div key={r.id} className={`rounded-lg border p-2.5 flex gap-2 ${SEVERITY_STYLE[r.severity]}`}>
+                    <span className="shrink-0">{SEVERITY_ICON[r.severity]}</span>
+                    <span>{r.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-
-          {/* Reminders */}
-          {trip.reminders.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="font-semibold text-stone-800 dark:text-stone-200">Reminders & warnings</h3>
-              {trip.reminders.sort((a, b) => {
-                const order = { critical: 0, warning: 1, info: 2 }
-                return order[a.severity] - order[b.severity]
-              }).map(r => (
-                <div key={r.id} className={`rounded-lg border p-3 text-sm flex gap-2 ${SEVERITY_STYLE[r.severity]}`}>
-                  <span>{SEVERITY_ICON[r.severity]}</span>
-                  <span>{r.message}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -293,13 +271,6 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
               className="btn-secondary text-sm disabled:opacity-40"
             >
               {loadingLib ? 'Loading…' : '📦 Load from library'}
-            </button>
-            <button
-              onClick={saveToLibrary}
-              disabled={savingLib}
-              className="btn-secondary text-sm disabled:opacity-40"
-            >
-              {savingLib ? 'Saving…' : '💾 Save list to library'}
             </button>
             <Link href="/packing-library" className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 transition-colors self-center ml-auto">
               Manage library →
