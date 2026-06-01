@@ -18,6 +18,8 @@ export interface Trip {
   experienceLevel: ExperienceLevel
   activities: ActivityType[]
   notes: string
+  heroColor?: string
+  heroImage?: string
   createdAt: string
   updatedAt: string
 }

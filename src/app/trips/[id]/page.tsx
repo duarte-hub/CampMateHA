@@ -35,8 +35,12 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [newCategory, setNewCategory] = useState('Custom')
   const [deleting, setDeleting] = useState(false)
   const [loadingLib, setLoadingLib] = useState(false)
-
   const [libMsg, setLibMsg] = useState('')
+  const [editingHero, setEditingHero] = useState(false)
+  const [editColor, setEditColor] = useState('')
+  const [editImage, setEditImage] = useState('')
+  const [savingHero, setSavingHero] = useState(false)
+  const [showReminders, setShowReminders] = useState(false)
 
   async function load() {
     const res = await fetch(`/api/trips/${id}`)
@@ -100,6 +104,18 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
     setTimeout(() => setLibMsg(''), 4000)
   }
 
+  async function saveHero() {
+    setSavingHero(true)
+    await fetch(`/api/trips/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ heroColor: editColor, heroImage: editImage }),
+    })
+    setTrip(t => t ? { ...t, heroColor: editColor, heroImage: editImage } : t)
+    setEditingHero(false)
+    setSavingHero(false)
+  }
+
   async function deleteTrip() {
     if (!confirm('Delete this trip? This cannot be undone.')) return
     setDeleting(true)
@@ -134,10 +150,21 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   return (
     <div className="space-y-4">
       {/* Hero header */}
-      <div className={`rounded-2xl px-5 py-4 text-white shadow-md bg-gradient-to-br relative overflow-hidden ${STYLE_GRADIENT[trip.campingStyle] ?? 'from-forest-700 to-forest-900'}`}>
-        <div className="absolute right-2 top-0 text-[90px] leading-none opacity-[0.08] select-none pointer-events-none">
-          {STYLE_ICON[trip.campingStyle]}
-        </div>
+      <div
+        className={`rounded-2xl px-5 py-4 text-white shadow-md relative overflow-hidden ${!trip.heroColor && !trip.heroImage ? `bg-gradient-to-br ${STYLE_GRADIENT[trip.campingStyle] ?? 'from-forest-700 to-forest-900'}` : ''}`}
+        style={
+          trip.heroImage
+            ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.55)),url(${trip.heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : trip.heroColor
+              ? { backgroundColor: trip.heroColor, backgroundImage: 'linear-gradient(135deg,rgba(0,0,0,0.05),rgba(0,0,0,0.38))' }
+              : {}
+        }
+      >
+        {!trip.heroImage && (
+          <div className="absolute right-2 top-0 text-[90px] leading-none opacity-[0.08] select-none pointer-events-none">
+            {STYLE_ICON[trip.campingStyle]}
+          </div>
+        )}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Link href="/" className="text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
@@ -157,7 +184,44 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             </button>
           </div>
         </div>
+        <button
+          onClick={() => { setEditColor(trip.heroColor ?? ''); setEditImage(trip.heroImage ?? ''); setEditingHero(e => !e) }}
+          className="absolute bottom-2 right-3 text-[10px] font-medium text-white/35 hover:text-white/70 transition-colors"
+        >
+          ✎ Customise
+        </button>
       </div>
+
+      {/* Hero edit panel */}
+      {editingHero && (
+        <div className="card p-4 space-y-3 -mt-2">
+          <div className="flex gap-4 flex-wrap">
+            <div className="space-y-1">
+              <label className="label text-xs">Banner colour</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={editColor || '#15803d'} onChange={e => setEditColor(e.target.value)}
+                  className="h-9 w-14 rounded border border-stone-300 dark:border-stone-600 cursor-pointer p-0.5 bg-white dark:bg-stone-800" />
+                {editColor && (
+                  <button onClick={() => setEditColor('')} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 min-w-48 space-y-1">
+              <label className="label text-xs">Background image URL</label>
+              <input className="input text-sm" placeholder="https://example.com/photo.jpg"
+                value={editImage} onChange={e => setEditImage(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setEditingHero(false)} className="btn-secondary text-xs">Cancel</button>
+            <button onClick={saveHero} disabled={savingHero} className="btn-primary text-xs disabled:opacity-40">
+              {savingHero ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-stone-200 dark:border-stone-700 gap-1 overflow-x-auto -mx-4 px-4">
@@ -216,16 +280,31 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             <Detail label="Activities" value={trip.activities.join(', ') || 'None'} />
             {trip.notes && <Detail label="Notes" value={trip.notes} />}
             {trip.reminders.length > 0 && (
-              <div className="pt-3 space-y-2 border-t border-stone-100 dark:border-stone-700 mt-2">
-                {trip.reminders.sort((a, b) => {
-                  const order = { critical: 0, warning: 1, info: 2 }
-                  return order[a.severity] - order[b.severity]
-                }).map(r => (
-                  <div key={r.id} className={`rounded-lg border p-2.5 flex gap-2 ${SEVERITY_STYLE[r.severity]}`}>
-                    <span className="shrink-0">{SEVERITY_ICON[r.severity]}</span>
-                    <span>{r.message}</span>
+              <div className="pt-2 border-t border-stone-100 dark:border-stone-700 mt-2">
+                <button
+                  onClick={() => setShowReminders(o => !o)}
+                  className="w-full flex items-center justify-between text-xs py-1 text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors"
+                >
+                  <span className="flex items-center gap-2.5">
+                    {trip.reminders.some(r => r.severity === 'critical') && <span>🚨 {trip.reminders.filter(r => r.severity === 'critical').length} critical</span>}
+                    {trip.reminders.some(r => r.severity === 'warning') && <span>⚠️ {trip.reminders.filter(r => r.severity === 'warning').length} warning{trip.reminders.filter(r => r.severity === 'warning').length !== 1 ? 's' : ''}</span>}
+                    {trip.reminders.some(r => r.severity === 'info') && <span>ℹ️ {trip.reminders.filter(r => r.severity === 'info').length} info</span>}
+                  </span>
+                  <span className="text-stone-300 dark:text-stone-600 ml-2">{showReminders ? '▲' : '▼'}</span>
+                </button>
+                {showReminders && (
+                  <div className="mt-1.5 space-y-1">
+                    {trip.reminders.sort((a, b) => {
+                      const order = { critical: 0, warning: 1, info: 2 }
+                      return order[a.severity] - order[b.severity]
+                    }).map(r => (
+                      <div key={r.id} className={`flex gap-1.5 text-xs px-2 py-1.5 rounded-lg border ${SEVERITY_STYLE[r.severity]}`}>
+                        <span className="shrink-0">{SEVERITY_ICON[r.severity]}</span>
+                        <span>{r.message}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
