@@ -8,6 +8,16 @@ import MealsTab from './MealsTab'
 
 type Tab = 'overview' | 'itinerary' | 'packing' | 'meals' | 'budget'
 
+const STYLE_GRADIENT: Record<string, string> = {
+  tent:           'from-forest-700 via-forest-800 to-forest-900',
+  camper_trailer: 'from-amber-600 via-amber-700 to-amber-900',
+  caravan:        'from-blue-700 via-blue-800 to-blue-900',
+  cabin:          'from-indigo-700 via-indigo-800 to-indigo-900',
+}
+const STYLE_ICON: Record<string, string> = {
+  tent: '⛺', camper_trailer: '🚐', caravan: '🚌', cabin: '🏠',
+}
+
 const SEVERITY_STYLE = {
   critical: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300',
   warning: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300',
@@ -123,24 +133,29 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <Link href="/" className="text-xs font-medium text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
-            ← All trips
-          </Link>
-          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mt-0.5">{trip.title || trip.destination}</h1>
-          <p className="text-stone-500 dark:text-stone-400 text-sm mt-0.5">
-            📍 {trip.destination} · {fmtDate(trip.startDate)}{nights > 0 ? ` – ${fmtDate(trip.endDate)} · ${nights} night${nights !== 1 ? 's' : ''}` : ' · Day trip'}
-          </p>
+      {/* Hero header */}
+      <div className={`rounded-2xl px-5 py-4 text-white shadow-md bg-gradient-to-br relative overflow-hidden ${STYLE_GRADIENT[trip.campingStyle] ?? 'from-forest-700 to-forest-900'}`}>
+        <div className="absolute right-2 top-0 text-[90px] leading-none opacity-[0.08] select-none pointer-events-none">
+          {STYLE_ICON[trip.campingStyle]}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link href={`/trips/${id}/share`} className="btn-secondary text-xs">
-            Share
-          </Link>
-          <button onClick={deleteTrip} disabled={deleting} className="text-xs text-red-500 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 px-2 py-1 transition-colors">
-            Delete
-          </button>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Link href="/" className="text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
+              ← All trips
+            </Link>
+            <h1 className="text-xl font-bold mt-0.5 leading-tight">{trip.title || trip.destination}</h1>
+            <p className="text-white/70 text-sm mt-0.5 truncate">
+              📍 {trip.destination} · {fmtDate(trip.startDate)}{nights > 0 ? ` – ${fmtDate(trip.endDate)} · ${nights} night${nights !== 1 ? 's' : ''}` : ' · Day trip'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link href={`/trips/${id}/share`} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+              Share
+            </Link>
+            <button onClick={deleteTrip} disabled={deleting} className="text-xs font-semibold text-white/50 hover:text-white/80 transition-colors px-2 py-1.5">
+              Delete
+            </button>
+          </div>
         </div>
       </div>
 
@@ -304,17 +319,26 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             <div key={cat} className="card overflow-hidden">
               <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
                 <h4 className="font-semibold text-sm text-stone-700 dark:text-stone-200">{cat}</h4>
-                <span className="text-xs text-stone-400 dark:text-stone-500 font-medium">{items.filter(i => i.checked).length}/{items.length}</span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                  items.filter(i => i.checked).length === items.length
+                    ? 'bg-forest-100 dark:bg-forest-900/40 text-forest-700 dark:text-forest-400'
+                    : 'bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400'
+                }`}>{items.filter(i => i.checked).length}/{items.length}</span>
               </div>
               <div className="divide-y divide-stone-50 dark:divide-stone-800">
                 {items.map(item => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors group">
-                    <input
-                      type="checkbox"
-                      checked={item.checked}
-                      onChange={() => togglePacking(item)}
-                      className="rounded border-stone-300 dark:border-stone-600 text-forest-600 focus:ring-forest-500 cursor-pointer"
-                    />
+                    <button
+                      onClick={() => togglePacking(item)}
+                      className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                        item.checked
+                          ? 'bg-forest-600 border-forest-600 dark:bg-forest-500 dark:border-forest-500'
+                          : 'border-stone-300 dark:border-stone-600 hover:border-forest-500 dark:hover:border-forest-500'
+                      }`}
+                      aria-label="Toggle packed"
+                    >
+                      {item.checked && <span className="text-white text-[10px] font-bold leading-none">✓</span>}
+                    </button>
                     <span
                       className={`flex-1 text-sm cursor-pointer select-none ${item.checked ? 'line-through text-stone-400 dark:text-stone-600' : 'text-stone-700 dark:text-stone-300'}`}
                       onClick={() => togglePacking(item)}

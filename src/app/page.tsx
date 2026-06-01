@@ -95,6 +95,13 @@ export default function HomePage() {
   )
 }
 
+const CARD_BAND: Record<string, string> = {
+  tent:           'from-forest-600 to-forest-500',
+  camper_trailer: 'from-amber-500 to-amber-400',
+  caravan:        'from-blue-600 to-blue-500',
+  cabin:          'from-indigo-600 to-indigo-500',
+}
+
 function TripCard({ trip }: { trip: Trip }) {
   const nights = nightsBetween(trip.startDate, trip.endDate)
   const start  = new Date(trip.startDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })
@@ -102,7 +109,7 @@ function TripCard({ trip }: { trip: Trip }) {
 
   return (
     <Link href={`/trips/${trip.id}`} className="card hover:border-forest-500 hover:shadow-md transition-all group block overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-forest-600 to-forest-500 group-hover:from-forest-500 group-hover:to-ember-500 transition-all" />
+      <div className={`h-1.5 bg-gradient-to-r transition-all ${CARD_BAND[trip.campingStyle] ?? 'from-forest-600 to-forest-500'}`} />
       <div className="p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-bold text-stone-900 dark:text-stone-100 group-hover:text-forest-700 dark:group-hover:text-forest-400 transition-colors leading-tight pr-2">
