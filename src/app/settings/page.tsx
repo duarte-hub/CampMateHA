@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { VehicleConfig } from '@/lib/types'
@@ -21,7 +21,7 @@ const DIETARY_OPTIONS = [
   'Nut-free', 'Halal', 'Kosher', 'Low-carb', 'No seafood', 'No pork',
 ]
 
-export default function SettingsPage() {
+function SettingsContent() {
   const [loading,       setLoading]       = useState(true)
   // Home location
   const [homeLoc,       setHomeLoc]       = useState<HomeLocation | null>(null)
@@ -465,5 +465,13 @@ export default function SettingsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
   )
 }
