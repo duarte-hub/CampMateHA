@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { VehicleConfig } from '@/lib/types'
 
@@ -36,6 +37,19 @@ export default function SettingsPage() {
   const [aiSaved,       setAiSaved]       = useState(false)
   const [dietary,       setDietary]       = useState<string[]>([])
   const [dietarySaved,  setDietarySaved]  = useState(false)
+  // Google Drive
+  const [driveClientId,     setDriveClientId]     = useState('')
+  const [driveClientSecret, setDriveClientSecret] = useState('')
+  const [driveConnected,    setDriveConnected]     = useState(false)
+  const [driveLastBackup,   setDriveLastBackup]    = useState<string | null>(null)
+  const [driveSaved,        setDriveSaved]         = useState(false)
+  const [backupBusy,        setBackupBusy]         = useState(false)
+  const [backupMsg,         setBackupMsg]          = useState('')
+  const [backupFiles,       setBackupFiles]        = useState<{ id: string; name: string; createdTime: string }[]>([])
+  const [showBackups,       setShowBackups]        = useState(false)
+  const [restoring,         setRestoring]          = useState(false)
+
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(d => {
@@ -43,8 +57,15 @@ export default function SettingsPage() {
       if (d.vehicleConfig) setVehicle(d.vehicleConfig)
       if (d.anthropicApiKey) setAnthropicKey(d.anthropicApiKey)
       setDietary(d.dietaryRestrictions ?? [])
+      if (d.drive?.clientId) setDriveClientId(d.drive.clientId)
+      setDriveConnected(d.drive?.connected ?? false)
+      setDriveLastBackup(d.drive?.lastBackup ?? null)
       setLoading(false)
     })
+    const status = searchParams.get('drive')
+    if (status === 'connected') setBackupMsg('✓ Google Drive connected')
+    if (status === 'error')     setBackupMsg('✗ Drive connection failed — check credentials and try again')
+    if (status === 'nocreds')   setBackupMsg('✗ Enter Client ID and Secret first')
   }, [])
 
   async function searchHome() {
@@ -93,6 +114,54 @@ export default function SettingsPage() {
 
   function toggleDietary(opt: string) {
     setDietary(prev => prev.includes(opt) ? prev.filter(d => d !== opt) : [...prev, opt])
+  }
+
+  async function saveDriveCredentials() {
+    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driveCredentials: { clientId: driveClientId, clientSecret: driveClientSecret } }) })
+    setDriveSaved(true)
+    setTimeout(() => setDriveSaved(false), 3000)
+  }
+
+  async function disconnectDrive() {
+    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disconnectDrive: true }) })
+    setDriveConnected(false)
+    setBackupMsg('')
+  }
+
+  async function runBackup() {
+    setBackupBusy(true); setBackupMsg('')
+    try {
+      const res = await fetch('/api/drive/backup', { method: 'POST' })
+      const data = await res.json()
+      if (data.ok) {
+        setBackupMsg(`✓ Backed up: ${data.fileName}`)
+        setDriveLastBackup(data.timestamp)
+      } else { setBackupMsg(`✗ ${data.error}`) }
+    } catch { setBackupMsg('✗ Backup failed') }
+    setBackupBusy(false)
+  }
+
+  async function loadBackupFiles() {
+    setShowBackups(true)
+    const res = await fetch('/api/drive/restore')
+    const data = await res.json()
+    setBackupFiles(data.files ?? [])
+  }
+
+  async function restoreFrom(fileId: string) {
+    if (!confirm('Restore this backup? This will overwrite your current data.')) return
+    setRestoring(true); setBackupMsg('')
+    try {
+      const res = await fetch('/api/drive/restore', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId }) })
+      const data = await res.json()
+      setBackupMsg(data.ok ? '✓ Restored — reload the app to see changes' : `✗ ${data.error}`)
+    } catch { setBackupMsg('✗ Restore failed') }
+    setRestoring(false)
+    setShowBackups(false)
   }
 
   function setV<K extends keyof VehicleConfig>(k: K, v: VehicleConfig[K]) {
@@ -254,6 +323,114 @@ export default function SettingsPage() {
           <button onClick={saveDietary} className="btn-primary text-sm">Save preferences</button>
           {dietarySaved && <p className="text-xs text-forest-700">✓ Saved</p>}
         </div>
+      </div>
+
+      {/* Google Drive Backup */}
+      <div className="card p-6 space-y-4">
+        <div>
+          <h2 className="font-bold text-stone-800 dark:text-stone-100 mb-1">☁️ Google Drive Backup</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            Automatically back up all your trip data to Google Drive.
+            Requires a Google Cloud OAuth 2.0 client with redirect URI set to{' '}
+            <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">{typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/drive/callback</code>.
+          </p>
+        </div>
+
+        {/* Credentials */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-2">
+            <div>
+              <label className="label">Client ID</label>
+              <input className="input text-sm font-mono" placeholder="…apps.googleusercontent.com"
+                value={driveClientId} onChange={e => setDriveClientId(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Client Secret</label>
+              <input type="password" className="input text-sm font-mono" placeholder="GOCSPX-…"
+                value={driveClientSecret} onChange={e => setDriveClientSecret(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={saveDriveCredentials} disabled={!driveClientId.trim() || !driveClientSecret.trim()}
+              className="btn-secondary text-sm disabled:opacity-40">
+              Save credentials
+            </button>
+            {driveSaved && <p className="text-xs text-forest-700 dark:text-forest-400">✓ Saved</p>}
+          </div>
+        </div>
+
+        {/* Connection status + actions */}
+        {driveConnected ? (
+          <div className="space-y-3">
+            <div className="rounded-lg bg-forest-50 dark:bg-forest-900/30 border border-forest-200 dark:border-forest-800 p-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-forest-800 dark:text-forest-300">✓ Connected to Google Drive</p>
+                {driveLastBackup && (
+                  <p className="text-xs text-stone-400 mt-0.5">
+                    Last backup: {new Date(driveLastBackup).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                )}
+              </div>
+              <button onClick={disconnectDrive} className="text-xs text-red-400 hover:text-red-600 shrink-0">Disconnect</button>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={runBackup} disabled={backupBusy}
+                className="btn-primary text-sm disabled:opacity-40">
+                {backupBusy ? '⏳ Backing up…' : '☁️ Backup now'}
+              </button>
+              <button onClick={loadBackupFiles} className="btn-secondary text-sm">
+                🔄 Restore from backup
+              </button>
+            </div>
+
+            {backupMsg && (
+              <p className={`text-sm font-medium ${backupMsg.startsWith('✓') ? 'text-forest-700 dark:text-forest-400' : 'text-red-600 dark:text-red-400'}`}>
+                {backupMsg}
+              </p>
+            )}
+
+            {showBackups && (
+              <div className="card overflow-hidden">
+                <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-stone-700 dark:text-stone-200">Drive backups</p>
+                  <button onClick={() => setShowBackups(false)} className="text-stone-400 hover:text-stone-600 text-lg leading-none">×</button>
+                </div>
+                {backupFiles.length === 0 ? (
+                  <p className="text-sm text-stone-400 px-4 py-3">No backups found in Drive.</p>
+                ) : (
+                  <div className="divide-y divide-stone-100 dark:divide-stone-800">
+                    {backupFiles.map(f => (
+                      <div key={f.id} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-stone-800 dark:text-stone-100">{f.name}</p>
+                          <p className="text-xs text-stone-400">{new Date(f.createdTime).toLocaleString('en-AU', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                        </div>
+                        <button onClick={() => restoreFrom(f.id)} disabled={restoring}
+                          className="btn-secondary text-xs disabled:opacity-40">
+                          {restoring ? 'Restoring…' : 'Restore'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {backupMsg && (
+              <p className={`text-sm font-medium ${backupMsg.startsWith('✓') ? 'text-forest-700 dark:text-forest-400' : 'text-red-600 dark:text-red-400'}`}>
+                {backupMsg}
+              </p>
+            )}
+            <a href="/api/drive/auth"
+              className={`btn-primary text-sm inline-flex ${!driveClientId ? 'opacity-40 pointer-events-none' : ''}`}>
+              Connect Google Drive
+            </a>
+            {!driveClientId && <p className="text-xs text-stone-400">Save credentials above first.</p>}
+          </div>
+        )}
       </div>
 
       {/* AI / Anthropic key */}

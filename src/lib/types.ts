@@ -133,12 +133,23 @@ export interface VehicleConfig {
   fuelPricePerL: number
 }
 
+export interface DriveConfig {
+  clientId: string
+  clientSecret: string
+  accessToken?: string
+  refreshToken?: string
+  tokenExpiry?: number
+  lastBackup?: string
+  folderId?: string
+}
+
 export interface AppSettings {
   googleMapsApiKey?: string
   anthropicApiKey?: string
   homeLocation?: { name: string; lat: number; lng: number }
   vehicleConfig?: VehicleConfig
   dietaryRestrictions?: string[]
+  driveConfig?: DriveConfig
 }
 
 export interface PackingTemplate {

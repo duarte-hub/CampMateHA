@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readSettings, writeSettings } from '@/lib/db'
+import { isDriveConnected } from '@/lib/drive'
 
 export async function GET() {
-  const s = readSettings()
+  const s  = readSettings()
+  const dc = s.driveConfig
   return NextResponse.json({
-    googleMapsApiKey: s.googleMapsApiKey ?? null,
-    anthropicApiKey:  s.anthropicApiKey  ?? null,
-    homeLocation:     s.homeLocation     ?? null,
-    vehicleConfig:    s.vehicleConfig    ?? null,
+    googleMapsApiKey:    s.googleMapsApiKey    ?? null,
+    anthropicApiKey:     s.anthropicApiKey     ?? null,
+    homeLocation:        s.homeLocation        ?? null,
+    vehicleConfig:       s.vehicleConfig       ?? null,
     dietaryRestrictions: s.dietaryRestrictions ?? [],
+    drive: {
+      clientId:    dc?.clientId    ?? null,
+      connected:   isDriveConnected(dc),
+      lastBackup:  dc?.lastBackup  ?? null,
+    },
   })
 }
 
@@ -20,6 +27,16 @@ export async function POST(req: NextRequest) {
   if ('homeLocation'        in body) s.homeLocation        = body.homeLocation        ?? undefined
   if ('vehicleConfig'       in body) s.vehicleConfig       = body.vehicleConfig       ?? undefined
   if ('dietaryRestrictions' in body) s.dietaryRestrictions = body.dietaryRestrictions ?? undefined
+  if ('driveCredentials'    in body) {
+    const { clientId, clientSecret } = body.driveCredentials
+    s.driveConfig = { ...(s.driveConfig ?? {}), clientId: clientId.trim(), clientSecret: clientSecret.trim() }
+  }
+  if ('disconnectDrive' in body) {
+    if (s.driveConfig) {
+      const { clientId, clientSecret } = s.driveConfig
+      s.driveConfig = { clientId, clientSecret }
+    }
+  }
   writeSettings(s)
   return NextResponse.json({ ok: true })
 }

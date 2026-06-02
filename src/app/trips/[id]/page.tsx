@@ -209,9 +209,28 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
               </div>
             </div>
             <div className="flex-1 min-w-48 space-y-1">
-              <label className="label text-xs">Background image URL</label>
-              <input className="input text-sm" placeholder="https://example.com/photo.jpg"
-                value={editImage} onChange={e => setEditImage(e.target.value)} />
+              <label className="label text-xs">Background image</label>
+              <div className="flex gap-2">
+                <input className="input text-sm flex-1 min-w-0" placeholder="https://example.com/photo.jpg"
+                  value={editImage.startsWith('data:') ? '' : editImage}
+                  onChange={e => setEditImage(e.target.value)} />
+                <label className="btn-secondary text-xs cursor-pointer shrink-0">
+                  Upload
+                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = ev => setEditImage(ev.target?.result as string)
+                    reader.readAsDataURL(file)
+                  }} />
+                </label>
+              </div>
+              {editImage.startsWith('data:') && (
+                <p className="text-xs text-forest-600 dark:text-forest-400">✓ Image uploaded</p>
+              )}
+              {editImage && (
+                <button onClick={() => setEditImage('')} className="text-xs text-stone-400 hover:text-stone-600">Remove image</button>
+              )}
             </div>
           </div>
           <div className="flex gap-2 justify-end">
