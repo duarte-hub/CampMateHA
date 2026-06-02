@@ -1,8 +1,15 @@
 import { readSettings, writeSettings } from './db'
 import type { DriveConfig } from './types'
 
+export function driveCredentials() {
+  const clientId     = process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  if (!clientId || !clientSecret) return null
+  return { clientId, clientSecret }
+}
+
 export async function getValidToken(): Promise<string | null> {
-  const s = readSettings()
+  const s  = readSettings()
   const dc = s.driveConfig
   if (!dc?.accessToken) return null
 
@@ -11,13 +18,15 @@ export async function getValidToken(): Promise<string | null> {
   }
 
   if (!dc.refreshToken) return null
+  const creds = driveCredentials()
+  if (!creds) return null
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id:     dc.clientId,
-      client_secret: dc.clientSecret,
+      client_id:     creds.clientId,
+      client_secret: creds.clientSecret,
       refresh_token: dc.refreshToken,
       grant_type:    'refresh_token',
     }),

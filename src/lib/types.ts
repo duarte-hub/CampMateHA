@@ -134,8 +134,6 @@ export interface VehicleConfig {
 }
 
 export interface DriveConfig {
-  clientId: string
-  clientSecret: string
   accessToken?: string
   refreshToken?: string
   tokenExpiry?: number

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readSettings } from '@/lib/db'
+import { driveCredentials } from '@/lib/drive'
 
 export async function GET(req: NextRequest) {
-  const s = readSettings()
-  if (!s.driveConfig?.clientId) {
+  const creds = driveCredentials()
+  if (!creds) {
     return NextResponse.redirect(`${req.nextUrl.origin}/settings?drive=nocreds`)
   }
 
   const params = new URLSearchParams({
-    client_id:     s.driveConfig.clientId,
+    client_id:     creds.clientId,
     redirect_uri:  `${req.nextUrl.origin}/api/drive/callback`,
     response_type: 'code',
     scope:         'https://www.googleapis.com/auth/drive.file',

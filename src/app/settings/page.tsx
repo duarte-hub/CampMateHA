@@ -38,11 +38,9 @@ function SettingsContent() {
   const [dietary,       setDietary]       = useState<string[]>([])
   const [dietarySaved,  setDietarySaved]  = useState(false)
   // Google Drive
-  const [driveClientId,     setDriveClientId]     = useState('')
-  const [driveClientSecret, setDriveClientSecret] = useState('')
+  const [driveConfigured,   setDriveConfigured]   = useState(false)
   const [driveConnected,    setDriveConnected]     = useState(false)
   const [driveLastBackup,   setDriveLastBackup]    = useState<string | null>(null)
-  const [driveSaved,        setDriveSaved]         = useState(false)
   const [backupBusy,        setBackupBusy]         = useState(false)
   const [backupMsg,         setBackupMsg]          = useState('')
   const [backupFiles,       setBackupFiles]        = useState<{ id: string; name: string; createdTime: string }[]>([])
@@ -57,7 +55,7 @@ function SettingsContent() {
       if (d.vehicleConfig) setVehicle(d.vehicleConfig)
       if (d.anthropicApiKey) setAnthropicKey(d.anthropicApiKey)
       setDietary(d.dietaryRestrictions ?? [])
-      if (d.drive?.clientId) setDriveClientId(d.drive.clientId)
+      setDriveConfigured(d.drive?.configured ?? false)
       setDriveConnected(d.drive?.connected ?? false)
       setDriveLastBackup(d.drive?.lastBackup ?? null)
       setLoading(false)
@@ -114,13 +112,6 @@ function SettingsContent() {
 
   function toggleDietary(opt: string) {
     setDietary(prev => prev.includes(opt) ? prev.filter(d => d !== opt) : [...prev, opt])
-  }
-
-  async function saveDriveCredentials() {
-    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ driveCredentials: { clientId: driveClientId, clientSecret: driveClientSecret } }) })
-    setDriveSaved(true)
-    setTimeout(() => setDriveSaved(false), 3000)
   }
 
   async function disconnectDrive() {
@@ -330,36 +321,10 @@ function SettingsContent() {
         <div>
           <h2 className="font-bold text-stone-800 dark:text-stone-100 mb-1">☁️ Google Drive Backup</h2>
           <p className="text-sm text-stone-500 dark:text-stone-400">
-            Automatically back up all your trip data to Google Drive.
-            Requires a Google Cloud OAuth 2.0 client with redirect URI set to{' '}
-            <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">{typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/drive/callback</code>.
+            Back up all your trip data to Google Drive.
           </p>
         </div>
 
-        {/* Credentials */}
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 gap-2">
-            <div>
-              <label className="label">Client ID</label>
-              <input className="input text-sm font-mono" placeholder="…apps.googleusercontent.com"
-                value={driveClientId} onChange={e => setDriveClientId(e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Client Secret</label>
-              <input type="password" className="input text-sm font-mono" placeholder="GOCSPX-…"
-                value={driveClientSecret} onChange={e => setDriveClientSecret(e.target.value)} />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={saveDriveCredentials} disabled={!driveClientId.trim() || !driveClientSecret.trim()}
-              className="btn-secondary text-sm disabled:opacity-40">
-              Save credentials
-            </button>
-            {driveSaved && <p className="text-xs text-forest-700 dark:text-forest-400">✓ Saved</p>}
-          </div>
-        </div>
-
-        {/* Connection status + actions */}
         {driveConnected ? (
           <div className="space-y-3">
             <div className="rounded-lg bg-forest-50 dark:bg-forest-900/30 border border-forest-200 dark:border-forest-800 p-3 flex items-center justify-between gap-3">
@@ -375,8 +340,7 @@ function SettingsContent() {
             </div>
 
             <div className="flex gap-2 flex-wrap">
-              <button onClick={runBackup} disabled={backupBusy}
-                className="btn-primary text-sm disabled:opacity-40">
+              <button onClick={runBackup} disabled={backupBusy} className="btn-primary text-sm disabled:opacity-40">
                 {backupBusy ? '⏳ Backing up…' : '☁️ Backup now'}
               </button>
               <button onClick={loadBackupFiles} className="btn-secondary text-sm">
@@ -424,11 +388,17 @@ function SettingsContent() {
                 {backupMsg}
               </p>
             )}
-            <a href="/api/drive/auth"
-              className={`btn-primary text-sm inline-flex ${!driveClientId ? 'opacity-40 pointer-events-none' : ''}`}>
-              Connect Google Drive
-            </a>
-            {!driveClientId && <p className="text-xs text-stone-400">Save credentials above first.</p>}
+            {driveConfigured ? (
+              <a href="/api/drive/auth" className="btn-primary text-sm inline-flex">
+                Authorise Google Drive
+              </a>
+            ) : (
+              <p className="text-sm text-stone-400 dark:text-stone-500">
+                Set <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">GOOGLE_CLIENT_ID</code> and{' '}
+                <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">GOOGLE_CLIENT_SECRET</code> in{' '}
+                <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">.env.local</code> to enable Drive backup.
+              </p>
+            )}
           </div>
         )}
       </div>

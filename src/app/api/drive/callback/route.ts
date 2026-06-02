@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readSettings, writeSettings } from '@/lib/db'
+import { driveCredentials } from '@/lib/drive'
 
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = req.nextUrl
@@ -10,9 +11,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}/settings?drive=error&msg=${encodeURIComponent(error ?? 'cancelled')}`)
   }
 
-  const s  = readSettings()
-  const dc = s.driveConfig
-  if (!dc?.clientId || !dc?.clientSecret) {
+  const creds = driveCredentials()
+  if (!creds) {
     return NextResponse.redirect(`${origin}/settings?drive=nocreds`)
   }
 
@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       code,
-      client_id:     dc.clientId,
-      client_secret: dc.clientSecret,
+      client_id:     creds.clientId,
+      client_secret: creds.clientSecret,
       redirect_uri:  `${origin}/api/drive/callback`,
       grant_type:    'authorization_code',
     }),
@@ -33,10 +33,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}/settings?drive=error&msg=token_exchange_failed`)
   }
 
+  const s = readSettings()
   s.driveConfig = {
-    ...dc,
+    ...(s.driveConfig ?? {}),
     accessToken:  tokens.access_token,
-    refreshToken: tokens.refresh_token ?? dc.refreshToken,
+    refreshToken: tokens.refresh_token ?? s.driveConfig?.refreshToken,
     tokenExpiry:  Date.now() + tokens.expires_in * 1000,
   }
   writeSettings(s)
