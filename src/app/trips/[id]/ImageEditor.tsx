@@ -21,8 +21,10 @@ export default function ImageEditor({ src, onApply, onCancel }: Props) {
 
   useEffect(() => {
     const img = new Image()
-    img.onload = () => setNatural({ w: img.naturalWidth, h: img.naturalHeight })
+    const load = () => setNatural({ w: img.naturalWidth, h: img.naturalHeight })
+    img.onload = load
     img.src = src
+    if (img.complete) load() // data URLs can load synchronously before onload is wired
   }, [src])
 
   function cSize() {
@@ -79,7 +81,7 @@ export default function ImageEditor({ src, onApply, onCancel }: Props) {
 
     const img = new Image()
     img.src = src
-    await new Promise<void>(r => { if (img.complete) r(); else { img.onload = () => r() } })
+    await new Promise<void>(r => { img.onload = () => r(); img.src = src; if (img.complete) r() })
 
     const { w: cW, h: cH } = cSize()
     const { cover } = bgDims()

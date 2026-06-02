@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState, use, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { TripWithDetails, PackingItem, BudgetItem } from '@/lib/types'
@@ -43,6 +43,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [savingHero, setSavingHero] = useState(false)
   const [showReminders, setShowReminders] = useState(false)
   const [imageEditorSrc, setImageEditorSrc] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const res = await fetch(`/api/trips/${id}`)
@@ -224,16 +225,23 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
                     <input className="input text-sm flex-1 min-w-0" placeholder="https://example.com/photo.jpg"
                       value={editImage.startsWith('data:') ? '' : editImage}
                       onChange={e => setEditImage(e.target.value)} />
-                    <label className="btn-secondary text-xs cursor-pointer shrink-0">
+                    <button type="button" onClick={() => fileInputRef.current?.click()}
+                      className="btn-secondary text-xs shrink-0">
                       Upload
-                      <input type="file" accept="image/*" className="hidden" onChange={e => {
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                      onChange={e => {
                         const file = e.target.files?.[0]
                         if (!file) return
                         const reader = new FileReader()
-                        reader.onload = ev => setImageEditorSrc(ev.target?.result as string)
+                        reader.onload = ev => {
+                          const result = ev.target?.result
+                          if (typeof result === 'string') setImageEditorSrc(result)
+                        }
                         reader.readAsDataURL(file)
+                        // reset so same file can be re-selected
+                        e.target.value = ''
                       }} />
-                    </label>
                   </div>
                   {editImage && (
                     <div className="flex items-center gap-2">
