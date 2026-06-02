@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { TripWithDetails, PackingItem, BudgetItem } from '@/lib/types'
 import MealsTab from './MealsTab'
+import ImageEditor from './ImageEditor'
 
 type Tab = 'overview' | 'itinerary' | 'packing' | 'meals' | 'budget'
 
@@ -41,6 +42,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [editImage, setEditImage] = useState('')
   const [savingHero, setSavingHero] = useState(false)
   const [showReminders, setShowReminders] = useState(false)
+  const [imageEditorSrc, setImageEditorSrc] = useState<string | null>(null)
 
   async function load() {
     const res = await fetch(`/api/trips/${id}`)
@@ -195,50 +197,67 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       {/* Hero edit panel */}
       {editingHero && (
         <div className="card p-4 space-y-3 -mt-2">
-          <div className="flex gap-4 flex-wrap">
-            <div className="space-y-1">
-              <label className="label text-xs">Banner colour</label>
-              <div className="flex items-center gap-2">
-                <input type="color" value={editColor || '#15803d'} onChange={e => setEditColor(e.target.value)}
-                  className="h-9 w-14 rounded border border-stone-300 dark:border-stone-600 cursor-pointer p-0.5 bg-white dark:bg-stone-800" />
-                {editColor && (
-                  <button onClick={() => setEditColor('')} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
-                    Reset
-                  </button>
-                )}
+          {imageEditorSrc ? (
+            <ImageEditor
+              src={imageEditorSrc}
+              onApply={url => { setEditImage(url); setImageEditorSrc(null) }}
+              onCancel={() => setImageEditorSrc(null)}
+            />
+          ) : (
+            <>
+              <div className="flex gap-4 flex-wrap">
+                <div className="space-y-1">
+                  <label className="label text-xs">Banner colour</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={editColor || '#15803d'} onChange={e => setEditColor(e.target.value)}
+                      className="h-9 w-14 rounded border border-stone-300 dark:border-stone-600 cursor-pointer p-0.5 bg-white dark:bg-stone-800" />
+                    {editColor && (
+                      <button onClick={() => setEditColor('')} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 min-w-48 space-y-1">
+                  <label className="label text-xs">Background image</label>
+                  <div className="flex gap-2">
+                    <input className="input text-sm flex-1 min-w-0" placeholder="https://example.com/photo.jpg"
+                      value={editImage.startsWith('data:') ? '' : editImage}
+                      onChange={e => setEditImage(e.target.value)} />
+                    <label className="btn-secondary text-xs cursor-pointer shrink-0">
+                      Upload
+                      <input type="file" accept="image/*" className="hidden" onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = ev => setImageEditorSrc(ev.target?.result as string)
+                        reader.readAsDataURL(file)
+                      }} />
+                    </label>
+                  </div>
+                  {editImage && (
+                    <div className="flex items-center gap-2">
+                      {editImage.startsWith('data:') && (
+                        <button onClick={() => setImageEditorSrc(editImage)}
+                          className="text-xs text-forest-600 dark:text-forest-400 hover:underline">
+                          ✎ Re-edit crop
+                        </button>
+                      )}
+                      <button onClick={() => setEditImage('')} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
+                        Remove image
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="flex-1 min-w-48 space-y-1">
-              <label className="label text-xs">Background image</label>
-              <div className="flex gap-2">
-                <input className="input text-sm flex-1 min-w-0" placeholder="https://example.com/photo.jpg"
-                  value={editImage.startsWith('data:') ? '' : editImage}
-                  onChange={e => setEditImage(e.target.value)} />
-                <label className="btn-secondary text-xs cursor-pointer shrink-0">
-                  Upload
-                  <input type="file" accept="image/*" className="hidden" onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    const reader = new FileReader()
-                    reader.onload = ev => setEditImage(ev.target?.result as string)
-                    reader.readAsDataURL(file)
-                  }} />
-                </label>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setEditingHero(false)} className="btn-secondary text-xs">Cancel</button>
+                <button onClick={saveHero} disabled={savingHero} className="btn-primary text-xs disabled:opacity-40">
+                  {savingHero ? 'Saving…' : 'Save'}
+                </button>
               </div>
-              {editImage.startsWith('data:') && (
-                <p className="text-xs text-forest-600 dark:text-forest-400">✓ Image uploaded</p>
-              )}
-              {editImage && (
-                <button onClick={() => setEditImage('')} className="text-xs text-stone-400 hover:text-stone-600">Remove image</button>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <button onClick={() => setEditingHero(false)} className="btn-secondary text-xs">Cancel</button>
-            <button onClick={saveHero} disabled={savingHero} className="btn-primary text-xs disabled:opacity-40">
-              {savingHero ? 'Saving…' : 'Save'}
-            </button>
-          </div>
+            </>
+          )}
         </div>
       )}
 
