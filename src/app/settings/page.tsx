@@ -38,9 +38,11 @@ function SettingsContent() {
   const [dietary,       setDietary]       = useState<string[]>([])
   const [dietarySaved,  setDietarySaved]  = useState(false)
   // Google Drive
-  const [driveConfigured,   setDriveConfigured]   = useState(false)
   const [driveConnected,    setDriveConnected]     = useState(false)
   const [driveLastBackup,   setDriveLastBackup]    = useState<string | null>(null)
+  const [driveClientId,     setDriveClientId]      = useState('')
+  const [driveClientSecret, setDriveClientSecret]  = useState('')
+  const [driveHasClientId,  setDriveHasClientId]   = useState(false)
   const [backupBusy,        setBackupBusy]         = useState(false)
   const [backupMsg,         setBackupMsg]          = useState('')
   const [backupFiles,       setBackupFiles]        = useState<{ id: string; name: string; createdTime: string }[]>([])
@@ -55,8 +57,8 @@ function SettingsContent() {
       if (d.vehicleConfig) setVehicle(d.vehicleConfig)
       if (d.anthropicApiKey) setAnthropicKey(d.anthropicApiKey)
       setDietary(d.dietaryRestrictions ?? [])
-      setDriveConfigured(d.drive?.configured ?? false)
       setDriveConnected(d.drive?.connected ?? false)
+      setDriveHasClientId(d.drive?.hasClientId ?? false)
       setDriveLastBackup(d.drive?.lastBackup ?? null)
       setLoading(false)
     })
@@ -112,6 +114,14 @@ function SettingsContent() {
 
   function toggleDietary(opt: string) {
     setDietary(prev => prev.includes(opt) ? prev.filter(d => d !== opt) : [...prev, opt])
+  }
+
+  async function handleAuthorise() {
+    if (driveClientId.trim() && driveClientSecret.trim()) {
+      await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driveCredentials: { clientId: driveClientId, clientSecret: driveClientSecret } }) })
+    }
+    window.location.href = '/api/drive/auth'
   }
 
   async function disconnectDrive() {
@@ -388,17 +398,27 @@ function SettingsContent() {
                 {backupMsg}
               </p>
             )}
-            {driveConfigured ? (
-              <a href="/api/drive/auth" className="btn-primary text-sm inline-flex">
-                Authorise Google Drive
-              </a>
-            ) : (
-              <p className="text-sm text-stone-400 dark:text-stone-500">
-                Set <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">GOOGLE_CLIENT_ID</code> and{' '}
-                <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">GOOGLE_CLIENT_SECRET</code> in{' '}
-                <code className="text-xs bg-stone-100 dark:bg-stone-800 px-1 rounded">.env.local</code> to enable Drive backup.
-              </p>
+            {!driveHasClientId && (
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <label className="label text-xs">Google Client ID</label>
+                  <input className="input text-sm font-mono" placeholder="…apps.googleusercontent.com"
+                    value={driveClientId} onChange={e => setDriveClientId(e.target.value)} />
+                </div>
+                <div>
+                  <label className="label text-xs">Client Secret</label>
+                  <input type="password" className="input text-sm font-mono" placeholder="GOCSPX-…"
+                    value={driveClientSecret} onChange={e => setDriveClientSecret(e.target.value)} />
+                </div>
+              </div>
             )}
+            <button
+              onClick={handleAuthorise}
+              disabled={!driveHasClientId && (!driveClientId.trim() || !driveClientSecret.trim())}
+              className="btn-primary text-sm disabled:opacity-40"
+            >
+              Authorise Google Drive
+            </button>
           </div>
         )}
       </div>

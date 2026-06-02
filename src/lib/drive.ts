@@ -2,8 +2,10 @@ import { readSettings, writeSettings } from './db'
 import type { DriveConfig } from './types'
 
 export function driveCredentials() {
-  const clientId     = process.env.GOOGLE_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  const s = readSettings()
+  // env vars take priority; fall back to credentials stored in settings.json
+  const clientId     = process.env.GOOGLE_CLIENT_ID     || s.driveConfig?.clientId
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || s.driveConfig?.clientSecret
   if (!clientId || !clientSecret) return null
   return { clientId, clientSecret }
 }

@@ -12,9 +12,9 @@ export async function GET() {
     vehicleConfig:       s.vehicleConfig       ?? null,
     dietaryRestrictions: s.dietaryRestrictions ?? [],
     drive: {
-      configured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
       connected:  isDriveConnected(dc),
       lastBackup: dc?.lastBackup ?? null,
+      hasClientId: !!(process.env.GOOGLE_CLIENT_ID || dc?.clientId),
     },
   })
 }
@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
   if ('homeLocation'        in body) s.homeLocation        = body.homeLocation        ?? undefined
   if ('vehicleConfig'       in body) s.vehicleConfig       = body.vehicleConfig       ?? undefined
   if ('dietaryRestrictions' in body) s.dietaryRestrictions = body.dietaryRestrictions ?? undefined
+  if ('driveCredentials' in body) {
+    const { clientId, clientSecret } = body.driveCredentials
+    s.driveConfig = { ...(s.driveConfig ?? {}), clientId: clientId?.trim(), clientSecret: clientSecret?.trim() }
+  }
   if ('disconnectDrive' in body) {
     s.driveConfig = {}
   }
