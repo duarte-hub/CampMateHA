@@ -134,14 +134,33 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   // Init Leaflet
   useEffect(() => {
     if (!mapRef.current || mapObj.current) return
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
 
-    import('leaflet').then(({ default: L }) => {
+    // Leaflet core CSS
+    const leafletCss = document.createElement('link')
+    leafletCss.rel = 'stylesheet'
+    leafletCss.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(leafletCss)
+
+    // Gesture handling CSS
+    const gestureCss = document.createElement('link')
+    gestureCss.rel = 'stylesheet'
+    gestureCss.href = 'https://unpkg.com/leaflet-gesture-handling@1.2.2/dist/leaflet-gesture-handling.min.css'
+    document.head.appendChild(gestureCss)
+
+    Promise.all([
+      import('leaflet'),
+      import('leaflet-gesture-handling'),
+    ]).then(([{ default: L }, { GestureHandling }]) => {
       if (!mapRef.current || mapObj.current) return
-      const map = L.map(mapRef.current, { zoomControl: false, zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 80, wheelDebounceTime: 20 }).setView([-25.5, 134], 5)
+
+      // Register the gesture handler
+      L.Map.addInitHook('addHandler', 'gestureHandling', GestureHandling)
+
+      const map = L.map(mapRef.current, {
+        gestureHandling: true,
+        zoomControl: false, zoomSnap: 0.5, zoomDelta: 0.5,
+        wheelPxPerZoomLevel: 120, wheelDebounceTime: 40,
+      } as Parameters<typeof L.map>[1]).setView([-25.5, 134], 5)
       L.control.zoom({ position: 'bottomright' }).addTo(map)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
