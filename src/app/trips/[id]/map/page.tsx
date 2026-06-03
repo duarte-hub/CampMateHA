@@ -82,6 +82,8 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   const [homeLoc,        setHomeLoc]        = useState<{ name: string; lat: number; lng: number } | null>(null)
   const [roadSegments,   setRoadSegments]   = useState<number[]>([])
   const [panelCollapsed, setPanelCollapsed] = useState(false)
+  const [dragItem,     setDragItem]     = useState<string | null>(null)
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null)
 
   // Floating search
   const [searchQ,       setSearchQ]       = useState('')
@@ -343,6 +345,22 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
     })))
   }
 
+  async function handleDrop(targetId: string) {
+    if (!dragItem || dragItem === targetId) { setDragItem(null); setDragOverItem(null); return }
+    const s = [...waypoints].sort((a, b) => a.order - b.order)
+    const srcIdx = s.findIndex(w => w.id === dragItem)
+    const tgtIdx = s.findIndex(w => w.id === targetId)
+    const updated = [...s]
+    const [removed] = updated.splice(srcIdx, 1)
+    updated.splice(tgtIdx, 0, removed)
+    const patches = updated.map((w, i) => ({ ...w, order: i }))
+    setWaypoints(patches)
+    setDragItem(null); setDragOverItem(null)
+    await Promise.all(patches.map(w => fetch(`/api/trips/${id}/waypoints/${w.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: w.order }),
+    })))
+  }
+
   function panTo(wp: Waypoint) {
     const sorted = [...waypoints].sort((a, b) => a.order - b.order)
     const idx = sorted.findIndex(w => w.id === wp.id)
@@ -459,7 +477,14 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
                       const nights = wp.nights ?? 1
                       const segKm = idx > 0 ? (roadSegments[idx - 1] ?? Math.round(haversineKm(sorted[idx - 1], wp) * 1.35)) : 0
                       return (
-                        <div key={wp.id}>
+                        <div key={wp.id}
+                          draggable
+                          onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDragItem(wp.id) }}
+                          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverItem(wp.id) }}
+                          onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverItem(null) }}
+                          onDrop={e => { e.preventDefault(); handleDrop(wp.id) }}
+                          onDragEnd={() => { setDragItem(null); setDragOverItem(null) }}
+                        >
                           {idx > 0 && (
                             <div className="flex items-center gap-2 px-3 py-0.5 bg-stone-50 border-y border-stone-100">
                               <div className="flex-1 border-t border-dashed border-stone-300" />
@@ -467,8 +492,9 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
                               <div className="flex-1 border-t border-dashed border-stone-300" />
                             </div>
                           )}
-                          <div className="p-3 hover:bg-stone-50 group border-b border-stone-100">
+                          <div className={`p-3 group border-b border-stone-100 transition-colors ${dragOverItem === wp.id && dragItem !== wp.id ? 'bg-forest-50 border-l-2 border-l-forest-400' : dragItem === wp.id ? 'opacity-40 bg-stone-50' : 'hover:bg-stone-50'}`}>
                             <div className="flex items-start gap-2">
+                              <span className="shrink-0 text-stone-300 hover:text-stone-500 cursor-grab active:cursor-grabbing mt-1 select-none text-base leading-none">⠿</span>
                               <span className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white mt-0.5 cursor-pointer"
                                 style={{ background: t.color }} onClick={() => panTo(wp)}>{idx + 1}</span>
                               <div className="flex-1 min-w-0">
@@ -504,10 +530,6 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
                                   <a href={nav.waze} target="_blank" rel="noreferrer" className="text-xs px-2 py-0.5 rounded bg-cyan-100 text-cyan-700 hover:bg-cyan-200 font-medium">Waze</a>
                                   <a href={nav.apple} target="_blank" rel="noreferrer" className="text-xs px-2 py-0.5 rounded bg-stone-100 text-stone-600 hover:bg-stone-200 font-medium">Apple</a>
                                 </div>
-                              </div>
-                              <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 shrink-0">
-                                <button onClick={() => moveWaypoint(wp.id, -1)} disabled={idx === 0} className="text-stone-400 hover:text-stone-700 disabled:opacity-20 text-xs">▲</button>
-                                <button onClick={() => moveWaypoint(wp.id, 1)} disabled={idx === sorted.length - 1} className="text-stone-400 hover:text-stone-700 disabled:opacity-20 text-xs">▼</button>
                               </div>
                               <button onClick={() => { setEditingId(wp.id); setEditName(wp.name) }}
                                 className="shrink-0 text-xs text-stone-300 hover:text-stone-600 opacity-0 group-hover:opacity-100">✏️</button>
@@ -682,7 +704,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
             <div className="relative">
               <div className="flex gap-1 bg-white rounded-xl shadow-md border border-stone-200 overflow-hidden">
                 <input
-                  className="flex-1 text-sm px-4 py-2.5 outline-none bg-transparent placeholder:text-stone-400"
+                  className="flex-1 text-sm px-4 py-2.5 outline-none bg-transparent text-stone-900 placeholder:text-stone-400"
                   placeholder="Search places or enter coordinates…"
                   value={searchQ}
                   onChange={e => { setSearchQ(e.target.value); if (!e.target.value) { setSearchResults([]); setShowResults(false); setNavTarget(null) } }}
