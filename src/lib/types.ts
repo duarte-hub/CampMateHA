@@ -123,6 +123,7 @@ export interface TripWithDetails extends Trip {
   meals: Meal[]
   budgetItems: BudgetItem[]
   reminders: Reminder[]
+  bookings: Booking[]
 }
 
 export interface VehicleConfig {
@@ -151,6 +152,22 @@ export interface AppSettings {
   vehicleConfig?: VehicleConfig
   dietaryRestrictions?: string[]
   driveConfig?: DriveConfig
+}
+
+export type BookingType = 'attraction' | 'accommodation' | 'tour' | 'restaurant' | 'transport' | 'other'
+
+export interface Booking {
+  id: string
+  tripId: string
+  dayId?: string
+  date: string
+  name: string
+  type: BookingType
+  cost: number
+  booked: boolean
+  url?: string
+  notes?: string
+  budgetItemId?: string
 }
 
 export interface FuelEntry {
@@ -184,4 +201,5 @@ export interface AppDatabase {
   mealTemplates: MealTemplate[]
   packingTemplates: PackingTemplate[]
   fuelLog: FuelEntry[]
+  bookings: Booking[]
 }

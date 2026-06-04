@@ -18,6 +18,7 @@ const empty: AppDatabase = {
   mealTemplates: [],
   packingTemplates: [],
   fuelLog: [],
+  bookings: [],
 }
 
 function ensureDir() {

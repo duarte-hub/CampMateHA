@@ -3,7 +3,7 @@
 import { useEffect, useState, use, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { TripWithDetails, PackingItem, BudgetItem } from '@/lib/types'
+import type { TripWithDetails, PackingItem, BudgetItem, Booking, BookingType } from '@/lib/types'
 import MealsTab from './MealsTab'
 import ImageEditor from './ImageEditor'
 
@@ -41,8 +41,17 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [editColor, setEditColor] = useState('')
   const [editImage, setEditImage] = useState('')
   const [savingHero, setSavingHero] = useState(false)
-  const [showReminders, setShowReminders] = useState(false)
-  const [imageEditorSrc, setImageEditorSrc] = useState<string | null>(null)
+  const [showReminders,       setShowReminders]       = useState(false)
+  const [imageEditorSrc,      setImageEditorSrc]      = useState<string | null>(null)
+  // Bookings
+  const [addingBookingDayId,  setAddingBookingDayId]  = useState<string | null>(null)
+  const [bkName,              setBkName]              = useState('')
+  const [bkType,              setBkType]              = useState<BookingType>('attraction')
+  const [bkCost,              setBkCost]              = useState('')
+  const [bkBooked,            setBkBooked]            = useState(false)
+  const [bkUrl,               setBkUrl]               = useState('')
+  const [bkNotes,             setBkNotes]             = useState('')
+  const [savingBooking,       setSavingBooking]        = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
@@ -105,6 +114,33 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
     }
     setLoadingLib(false)
     setTimeout(() => setLibMsg(''), 4000)
+  }
+
+  async function addBooking(dayId: string, date: string) {
+    if (!bkName.trim()) return
+    setSavingBooking(true)
+    const res = await fetch(`/api/trips/${id}/bookings`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dayId, date, name: bkName, type: bkType, cost: parseFloat(bkCost) || 0, booked: bkBooked, url: bkUrl || undefined, notes: bkNotes || undefined }),
+    })
+    const booking: Booking = await res.json()
+    setTrip(t => t ? { ...t, bookings: [...(t.bookings ?? []), booking] } : t)
+    setBkName(''); setBkType('attraction'); setBkCost(''); setBkBooked(false); setBkUrl(''); setBkNotes('')
+    setAddingBookingDayId(null); setSavingBooking(false)
+  }
+
+  async function deleteBooking(bookingId: string) {
+    await fetch(`/api/trips/${id}/bookings/${bookingId}`, { method: 'DELETE' })
+    setTrip(t => t ? { ...t, bookings: (t.bookings ?? []).filter(b => b.id !== bookingId) } : t)
+  }
+
+  async function toggleBooked(booking: Booking) {
+    const updated = { ...booking, booked: !booking.booked }
+    await fetch(`/api/trips/${id}/bookings/${booking.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booked: !booking.booked }),
+    })
+    setTrip(t => t ? { ...t, bookings: (t.bookings ?? []).map(b => b.id === booking.id ? updated : b) } : t)
   }
 
   async function saveHero() {
@@ -364,32 +400,221 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       )}
 
       {/* Itinerary Tab */}
-      {tab === 'itinerary' && (
-        <div className="space-y-3">
-          {trip.itinerary.sort((a, b) => a.dayNumber - b.dayNumber).map(day => (
-            <div key={day.id} className="card p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="shrink-0 w-8 h-8 rounded-full bg-forest-700 dark:bg-forest-600 text-white flex items-center justify-center text-sm font-bold">
-                  {day.dayNumber}
-                </span>
-                <div>
-                  <p className="font-semibold text-stone-800 dark:text-stone-200">{day.summary}</p>
-                  <p className="text-xs text-stone-400 dark:text-stone-500">{fmtDate(day.date)}</p>
+      {tab === 'itinerary' && (() => {
+        const BK_TYPE: Record<string, { icon: string; label: string; bg: string; text: string }> = {
+          attraction:    { icon: '📸', label: 'Attraction', bg: 'bg-amber-100 dark:bg-amber-900/30',    text: 'text-amber-700 dark:text-amber-400' },
+          accommodation: { icon: '🏨', label: 'Stay',       bg: 'bg-blue-100 dark:bg-blue-900/30',      text: 'text-blue-700 dark:text-blue-400' },
+          tour:          { icon: '🎯', label: 'Tour',        bg: 'bg-purple-100 dark:bg-purple-900/30',  text: 'text-purple-700 dark:text-purple-400' },
+          restaurant:    { icon: '🍽', label: 'Dining',      bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400' },
+          transport:     { icon: '🚌', label: 'Transport',   bg: 'bg-sky-100 dark:bg-sky-900/30',        text: 'text-sky-700 dark:text-sky-400' },
+          other:         { icon: '📋', label: 'Other',       bg: 'bg-stone-100 dark:bg-stone-700',       text: 'text-stone-600 dark:text-stone-400' },
+        }
+        function dayIcon(summary: string) {
+          const s = summary.toLowerCase()
+          if (s.includes('depart') || s.includes('drive') || s.includes('travel')) return '🚗'
+          if (s.includes('fish')) return '🎣'
+          if (s.includes('hik') || s.includes('trail')) return '🥾'
+          if (s.includes('beach') || s.includes('swim')) return '🏖️'
+          if (s.includes('4wd') || s.includes('track')) return '🚙'
+          if (s.includes('kayak')) return '🚣'
+          if (s.includes('pack') || s.includes('return') || s.includes('home')) return '🏁'
+          return '⛺'
+        }
+        function dayBorder(summary: string) {
+          const s = summary.toLowerCase()
+          if (s.includes('depart') || s.includes('drive') || s.includes('travel') || s.includes('pack') || s.includes('return')) return '#f59e0b'
+          if (s.includes('beach') || s.includes('swim') || s.includes('kayak')) return '#38bdf8'
+          if (s.includes('fish')) return '#0284c7'
+          return '#16a34a'
+        }
+        const allBookings = trip.bookings ?? []
+        const totalBookingCost = allBookings.reduce((s, b) => s + b.cost, 0)
+        const confirmedCount = allBookings.filter(b => b.booked).length
+        return (
+          <div className="space-y-3">
+            {/* Summary strip */}
+            {trip.itinerary.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                <div className="card px-3 py-2 flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-stone-800 dark:text-stone-200">{trip.itinerary.length}</span>
+                  <span className="text-xs text-stone-500 dark:text-stone-400">days</span>
                 </div>
+                {allBookings.length > 0 && (
+                  <div className="card px-3 py-2 flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-stone-800 dark:text-stone-200">🎫 {allBookings.length}</span>
+                    <span className="text-xs text-stone-500 dark:text-stone-400">booking{allBookings.length !== 1 ? 's' : ''}</span>
+                    {confirmedCount > 0 && (
+                      <span className="text-xs font-medium text-forest-600 dark:text-forest-400">· {confirmedCount} confirmed</span>
+                    )}
+                  </div>
+                )}
+                {totalBookingCost > 0 && (
+                  <div className="card px-3 py-2 flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-amber-600 dark:text-amber-400">${totalBookingCost.toLocaleString()}</span>
+                    <span className="text-xs text-stone-500 dark:text-stone-400">in bookings</span>
+                  </div>
+                )}
               </div>
-              <ul className="space-y-1.5 ml-11">
-                {day.activities.map((a, i) => (
-                  <li key={i} className="text-sm text-stone-600 dark:text-stone-400 flex gap-2">
-                    <span className="text-stone-300 dark:text-stone-600 mt-0.5 shrink-0">•</span>
-                    {a}
-                  </li>
-                ))}
-              </ul>
-              {day.notes && <p className="ml-11 mt-2 text-xs text-stone-400 dark:text-stone-500 italic">{day.notes}</p>}
-            </div>
-          ))}
-        </div>
-      )}
+            )}
+
+            {trip.itinerary.sort((a, b) => a.dayNumber - b.dayNumber).map(day => {
+              const dayBookings = allBookings.filter(b => b.dayId === day.id)
+              const dayBookingCost = dayBookings.reduce((s, b) => s + b.cost, 0)
+              const isAdding = addingBookingDayId === day.id
+              return (
+                <div key={day.id} className="card overflow-hidden" style={{ borderLeftColor: dayBorder(day.summary), borderLeftWidth: 3 }}>
+                  {/* Day header */}
+                  <div className="px-4 py-3 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-100 dark:border-stone-700">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl">{dayIcon(day.summary)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-stone-800 dark:text-stone-100 leading-snug">{day.summary}</p>
+                        <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{fmtDate(day.date)}</p>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-2">
+                        {dayBookingCost > 0 && (
+                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                            💰 ${dayBookingCost.toLocaleString()}
+                          </span>
+                        )}
+                        <span className="text-xs font-bold text-stone-400 dark:text-stone-500 bg-stone-100 dark:bg-stone-700 rounded-full px-2 py-0.5">
+                          Day {day.dayNumber}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Activities */}
+                  {(day.activities.length > 0 || day.notes) && (
+                    <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700">
+                      {day.activities.length > 0 && (
+                        <div className="ml-1 pl-3 border-l-2 border-stone-200 dark:border-stone-700 space-y-1.5">
+                          {day.activities.map((a, i) => (
+                            <p key={i} className="text-sm text-stone-600 dark:text-stone-400">{a}</p>
+                          ))}
+                        </div>
+                      )}
+                      {day.notes && <p className={`text-xs text-stone-400 dark:text-stone-500 italic ${day.activities.length > 0 ? 'mt-2' : ''}`}>{day.notes}</p>}
+                    </div>
+                  )}
+
+                  {/* Bookings */}
+                  <div className="px-4 py-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wide">
+                        🎫 Bookings{dayBookings.length > 0 && ` (${dayBookings.length})`}
+                      </p>
+                      {!isAdding && (
+                        <button
+                          onClick={() => { setAddingBookingDayId(day.id); setBkName(''); setBkCost(''); setBkUrl(''); setBkNotes(''); setBkBooked(false); setBkType('attraction') }}
+                          className="text-xs text-forest-600 dark:text-forest-400 font-semibold hover:underline">
+                          + Add booking
+                        </button>
+                      )}
+                    </div>
+
+                    {dayBookings.map(bk => {
+                      const bkStyle = BK_TYPE[bk.type] ?? BK_TYPE.other
+                      return (
+                        <div key={bk.id} className="flex items-start gap-2.5 group py-0.5">
+                          <button onClick={() => toggleBooked(bk)}
+                            className={`mt-0.5 shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${bk.booked ? 'bg-forest-600 border-forest-600' : 'border-stone-300 dark:border-stone-600 hover:border-forest-400'}`}>
+                            {bk.booked && <span className="text-white text-[9px] font-bold">✓</span>}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-xs px-1.5 py-0.5 rounded-md font-medium shrink-0 ${bkStyle.bg} ${bkStyle.text}`}>
+                                {bkStyle.icon} {bkStyle.label}
+                              </span>
+                              <span className="text-sm text-stone-700 dark:text-stone-200 font-medium">{bk.name}</span>
+                            </div>
+                            {bk.notes && <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5 italic">{bk.notes}</p>}
+                            {bk.url && (
+                              <a href={bk.url} target="_blank" rel="noreferrer" className="text-xs text-forest-600 dark:text-forest-400 hover:underline mt-0.5 block">
+                                Book now →
+                              </a>
+                            )}
+                          </div>
+                          <div className="shrink-0 flex items-center gap-2">
+                            {bk.cost > 0 && (
+                              <span className="text-sm font-bold text-stone-700 dark:text-stone-200">${bk.cost.toLocaleString()}</span>
+                            )}
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${bk.booked ? 'bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}`}>
+                              {bk.booked ? 'Confirmed' : 'To book'}
+                            </span>
+                            <button onClick={() => deleteBooking(bk.id)}
+                              className="text-stone-300 dark:text-stone-600 hover:text-red-500 text-xs opacity-0 group-hover:opacity-100 transition-all shrink-0">✕</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {dayBookings.length === 0 && !isAdding && (
+                      <p className="text-xs text-stone-400 dark:text-stone-500 italic">No bookings yet — add attractions, tours, restaurants…</p>
+                    )}
+
+                    {/* Inline add form */}
+                    {isAdding && (
+                      <div className="rounded-xl border border-forest-200 dark:border-forest-800 bg-forest-50/50 dark:bg-forest-900/20 p-3 space-y-2 mt-1">
+                        <div className="flex gap-2">
+                          <select value={bkType} onChange={e => setBkType(e.target.value as BookingType)}
+                            className="input text-xs py-1.5 w-36 shrink-0">
+                            <option value="attraction">📸 Attraction</option>
+                            <option value="tour">🎯 Tour</option>
+                            <option value="accommodation">🏨 Stay</option>
+                            <option value="restaurant">🍽 Restaurant</option>
+                            <option value="transport">🚌 Transport</option>
+                            <option value="other">📋 Other</option>
+                          </select>
+                          <input className="input text-sm flex-1" placeholder="Name…" autoFocus
+                            value={bkName} onChange={e => setBkName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && addBooking(day.id, day.date)} />
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="relative w-28 shrink-0">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs">$</span>
+                            <input type="number" min={0} className="input text-sm pl-5 w-full" placeholder="Cost"
+                              value={bkCost} onChange={e => setBkCost(e.target.value)} />
+                          </div>
+                          <input className="input text-sm flex-1" placeholder="Booking URL (optional)"
+                            value={bkUrl} onChange={e => setBkUrl(e.target.value)} />
+                        </div>
+                        <textarea className="input text-sm w-full resize-none" rows={2} placeholder="Notes (optional)"
+                          value={bkNotes} onChange={e => setBkNotes(e.target.value)} />
+                        <div className="flex items-center gap-3 justify-between">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <button onClick={() => setBkBooked(v => !v)}
+                              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${bkBooked ? 'bg-forest-600 border-forest-600' : 'border-stone-300 hover:border-forest-400'}`}>
+                              {bkBooked && <span className="text-white text-[9px] font-bold">✓</span>}
+                            </button>
+                            <span className="text-xs text-stone-600 dark:text-stone-400">Already confirmed</span>
+                          </label>
+                          <div className="flex gap-2">
+                            <button onClick={() => setAddingBookingDayId(null)} className="text-xs text-stone-400 hover:text-stone-700 px-2 py-1">Cancel</button>
+                            <button onClick={() => addBooking(day.id, day.date)} disabled={savingBooking || !bkName.trim()}
+                              className="btn-primary text-xs py-1 px-3 disabled:opacity-40">
+                              {savingBooking ? 'Saving…' : 'Add booking'}
+                            </button>
+                          </div>
+                        </div>
+                        {parseFloat(bkCost) > 0 && (
+                          <p className="text-xs text-stone-400 dark:text-stone-500">💡 Cost will be added to your budget under Bookings</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {trip.itinerary.length === 0 && (
+              <div className="card p-10 text-center">
+                <p className="text-3xl mb-2">📅</p>
+                <p className="text-stone-500 dark:text-stone-400 text-sm">No itinerary yet — add stops on the Map tab to generate one.</p>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Packing Tab */}
       {tab === 'packing' && (
@@ -524,6 +749,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
           'Food':          '#22c55e',
           'Camp Supplies': '#8b5cf6',
           'Activities':    '#ec4899',
+          'Bookings':      '#f43f5e',
           'Miscellaneous': '#94a3b8',
         }
         const catColor = (c: string) => CAT_COLOR[c] ?? '#94a3b8'

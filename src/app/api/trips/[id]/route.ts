@@ -12,11 +12,12 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   const result: TripWithDetails = {
     ...trip,
-    itinerary: db.itineraryDays.filter(d => d.tripId === id),
+    itinerary:    db.itineraryDays.filter(d => d.tripId === id),
     packingItems: db.packingItems.filter(p => p.tripId === id),
-    meals: db.meals.filter(m => m.tripId === id),
-    budgetItems: db.budgetItems.filter(b => b.tripId === id),
-    reminders: db.reminders.filter(r => r.tripId === id),
+    meals:        db.meals.filter(m => m.tripId === id),
+    budgetItems:  db.budgetItems.filter(b => b.tripId === id),
+    reminders:    db.reminders.filter(r => r.tripId === id),
+    bookings:     (db.bookings ?? []).filter(b => b.tripId === id),
   }
   return NextResponse.json(result)
 }
@@ -36,12 +37,13 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { id } = await params
   const db = readDb()
-  db.trips = db.trips.filter(t => t.id !== id)
+  db.trips         = db.trips.filter(t => t.id !== id)
   db.itineraryDays = db.itineraryDays.filter(d => d.tripId !== id)
-  db.packingItems = db.packingItems.filter(p => p.tripId !== id)
-  db.meals = db.meals.filter(m => m.tripId !== id)
-  db.budgetItems = db.budgetItems.filter(b => b.tripId !== id)
-  db.reminders = db.reminders.filter(r => r.tripId !== id)
+  db.packingItems  = db.packingItems.filter(p => p.tripId !== id)
+  db.meals         = db.meals.filter(m => m.tripId !== id)
+  db.budgetItems   = db.budgetItems.filter(b => b.tripId !== id)
+  db.reminders     = db.reminders.filter(r => r.tripId !== id)
+  db.bookings      = (db.bookings ?? []).filter(b => b.tripId !== id)
   writeDb(db)
   return new NextResponse(null, { status: 204 })
 }
