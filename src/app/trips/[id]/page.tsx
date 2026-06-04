@@ -500,69 +500,155 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       )}
 
       {/* Budget Tab */}
-      {tab === 'budget' && (
-        <div className="space-y-4">
-          {/* Total */}
-          <div className="card p-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-1">Estimated total</p>
-              <p className="text-3xl font-bold text-stone-900 dark:text-stone-100">
-                ${trip.budgetItems.reduce((s, b) => s + b.estimatedCost, 0).toLocaleString()}
-              </p>
-              <p className="text-xs text-stone-400 dark:text-stone-500 mt-1">
-                ≈ ${Math.round(trip.budgetItems.reduce((s, b) => s + b.estimatedCost, 0) / (trip.adults + trip.kids))} per person
-              </p>
-            </div>
-            {trip.budgetItems.some(b => b.actualCost !== undefined) && (
-              <div className="text-right">
-                <p className="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-1">Actual total</p>
-                <p className="text-2xl font-bold text-forest-700 dark:text-forest-400">
-                  ${trip.budgetItems.reduce((s, b) => s + (b.actualCost ?? 0), 0).toLocaleString()}
-                </p>
-              </div>
-            )}
-          </div>
+      {tab === 'budget' && (() => {
+        const people      = trip.adults + trip.kids
+        const totalEst    = trip.budgetItems.reduce((s, b) => s + b.estimatedCost, 0)
+        const totalAct    = trip.budgetItems.reduce((s, b) => s + (b.actualCost ?? 0), 0)
+        const hasActual   = trip.budgetItems.some(b => (b.actualCost ?? 0) > 0)
+        const overBudget  = hasActual && totalAct > totalEst
+        const categories  = Object.entries(
+          trip.budgetItems.reduce<Record<string, BudgetItem[]>>((acc, item) => {
+            ;(acc[item.category] ??= []).push(item)
+            return acc
+          }, {})
+        )
+        const CAT_COLOR: Record<string, string> = {
+          'Campsite':      '#3b82f6',
+          'Transport':     '#f59e0b',
+          'Food':          '#22c55e',
+          'Camp Supplies': '#8b5cf6',
+          'Activities':    '#ec4899',
+          'Miscellaneous': '#94a3b8',
+        }
+        const catColor = (c: string) => CAT_COLOR[c] ?? '#94a3b8'
 
-          {/* Items by category */}
-          {Object.entries(
-            trip.budgetItems.reduce<Record<string, BudgetItem[]>>((acc, item) => {
-              ;(acc[item.category] ??= []).push(item)
-              return acc
-            }, {})
-          ).map(([cat, items]) => (
-            <div key={cat} className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-100 dark:border-stone-700">
-                <h4 className="font-semibold text-sm text-stone-700 dark:text-stone-200">{cat}</h4>
+        return (
+          <div className="space-y-4">
+            {/* Summary card */}
+            <div className="card p-5 space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-1">Estimated total</p>
+                  <p className="text-3xl font-bold text-stone-900 dark:text-stone-100">${totalEst.toLocaleString()}</p>
+                  {people > 1 && (
+                    <p className="text-xs text-stone-400 dark:text-stone-500 mt-1">≈ ${Math.round(totalEst / people)} per person</p>
+                  )}
+                </div>
+                {hasActual && (
+                  <div className="text-right">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500 mb-1">Actual spend</p>
+                    <p className={`text-2xl font-bold ${overBudget ? 'text-red-600 dark:text-red-400' : 'text-forest-700 dark:text-forest-400'}`}>
+                      ${totalAct.toLocaleString()}
+                    </p>
+                    <p className={`text-xs mt-0.5 font-medium ${overBudget ? 'text-red-500' : 'text-forest-600 dark:text-forest-400'}`}>
+                      {overBudget ? `↑ $${(totalAct - totalEst).toLocaleString()} over` : `↓ $${(totalEst - totalAct).toLocaleString()} under`}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="divide-y divide-stone-50 dark:divide-stone-800">
-                {items.map(item => (
-                  <div key={item.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="flex-1 text-sm text-stone-700 dark:text-stone-300">{item.name}</span>
+
+              {/* Stacked breakdown bar */}
+              {totalEst > 0 && (
+                <div className="h-3 rounded-full overflow-hidden flex gap-px bg-stone-100 dark:bg-stone-700">
+                  {categories.map(([cat, items]) => {
+                    const catEst = items.reduce((s, b) => s + b.estimatedCost, 0)
+                    const pct = catEst / totalEst * 100
+                    if (pct < 0.5) return null
+                    return (
+                      <div key={cat} style={{ width: `${pct}%`, background: catColor(cat) }}
+                        title={`${cat}: $${catEst.toLocaleString()}`} className="transition-all" />
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                {categories.map(([cat, items]) => {
+                  const catEst = items.reduce((s, b) => s + b.estimatedCost, 0)
+                  const pct = totalEst > 0 ? Math.round(catEst / totalEst * 100) : 0
+                  return (
+                    <div key={cat} className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: catColor(cat) }} />
+                      <span className="text-xs text-stone-500 dark:text-stone-400">{cat}</span>
+                      <span className="text-xs font-semibold text-stone-700 dark:text-stone-200">${catEst.toLocaleString()}</span>
+                      <span className="text-xs text-stone-300 dark:text-stone-600">{pct}%</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Category cards */}
+            {categories.map(([cat, items]) => {
+              const catEst = items.reduce((s, b) => s + b.estimatedCost, 0)
+              const catAct = items.reduce((s, b) => s + (b.actualCost ?? 0), 0)
+              const pct    = totalEst > 0 ? Math.round(catEst / totalEst * 100) : 0
+              const catOver = catAct > catEst && catAct > 0
+              return (
+                <div key={cat} className="card overflow-hidden" style={{ borderLeftColor: catColor(cat), borderLeftWidth: 3 }}>
+                  <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-stone-400 dark:text-stone-500">Est.</span>
-                      <input
-                        type="number"
-                        className="w-20 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-sm px-2 py-1.5 text-right focus:border-forest-500 focus:outline-none focus:ring-1 focus:ring-forest-500/30"
-                        value={item.estimatedCost}
-                        onChange={e => updateBudget(item.id, 'estimatedCost', parseFloat(e.target.value) || 0)}
-                      />
-                      <span className="text-xs text-stone-400 dark:text-stone-500">Act.</span>
-                      <input
-                        type="number"
-                        className="w-20 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-sm px-2 py-1.5 text-right focus:border-forest-500 focus:outline-none focus:ring-1 focus:ring-forest-500/30"
-                        placeholder="—"
-                        value={item.actualCost ?? ''}
-                        onChange={e => updateBudget(item.id, 'actualCost', parseFloat(e.target.value) || 0)}
-                      />
+                      <h4 className="font-semibold text-sm text-stone-700 dark:text-stone-200">{cat}</h4>
+                      <span className="text-xs text-stone-400 dark:text-stone-500">{pct}%</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-bold text-stone-800 dark:text-stone-100">${catEst.toLocaleString()}</span>
+                      {catAct > 0 && (
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${catOver ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400'}`}>
+                          act. ${catAct.toLocaleString()}
+                        </span>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+                  <div className="divide-y divide-stone-50 dark:divide-stone-800">
+                    {items.map(item => {
+                      const itemOver = (item.actualCost ?? 0) > item.estimatedCost && (item.actualCost ?? 0) > 0
+                      return (
+                        <div key={item.id} className={`px-4 py-3 ${itemOver ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
+                          <p className="text-sm text-stone-700 dark:text-stone-300 mb-2 leading-snug">{item.name}</p>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <span className="text-xs text-stone-400 dark:text-stone-500 w-7 shrink-0">Est.</span>
+                              <div className="relative flex-1">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">$</span>
+                                <input type="number" min={0}
+                                  className="w-full rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-sm pl-5 pr-2 py-1.5 text-right focus:border-forest-500 focus:outline-none focus:ring-1 focus:ring-forest-500/30"
+                                  value={item.estimatedCost}
+                                  onChange={e => updateBudget(item.id, 'estimatedCost', parseFloat(e.target.value) || 0)} />
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <span className="text-xs text-stone-400 dark:text-stone-500 w-7 shrink-0">Act.</span>
+                              <div className="relative flex-1">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">$</span>
+                                <input type="number" min={0}
+                                  className={`w-full rounded-lg border text-sm pl-5 pr-2 py-1.5 text-right focus:outline-none focus:ring-1 focus:ring-forest-500/30 bg-white dark:bg-stone-800 dark:text-stone-200 ${itemOver ? 'border-red-300 dark:border-red-700 text-red-700 focus:border-red-400' : 'border-stone-200 dark:border-stone-700 text-stone-800 focus:border-forest-500'}`}
+                                  placeholder="0"
+                                  value={item.actualCost ?? ''}
+                                  onChange={e => updateBudget(item.id, 'actualCost', parseFloat(e.target.value) || 0)} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-stone-400 dark:text-stone-500">Fill in Act. as you spend to track vs estimate</p>
+              <button
+                onClick={async () => { await fetch(`/api/trips/${id}/budget/regenerate`, { method: 'POST' }); load() }}
+                className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 transition-colors">
+                ↻ Refresh estimates
+              </button>
             </div>
-          ))}
-          <p className="text-xs text-stone-400 dark:text-stone-500 text-center">Tap Est. or Act. fields to edit amounts</p>
-        </div>
-      )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
