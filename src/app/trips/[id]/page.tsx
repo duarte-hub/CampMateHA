@@ -638,13 +638,33 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
               )
             })}
 
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-stone-400 dark:text-stone-500">Fill in Act. as you spend to track vs estimate</p>
-              <button
-                onClick={async () => { await fetch(`/api/trips/${id}/budget/regenerate`, { method: 'POST' }); load() }}
-                className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 transition-colors">
-                ↻ Refresh estimates
-              </button>
+            <div className="card p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">Budget settings</h4>
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-stone-600 dark:text-stone-400 shrink-0">Campsite rate</label>
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="relative flex-1 max-w-28">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-sm">$</span>
+                    <input type="number" min={0}
+                      className="input text-sm pl-6 text-right"
+                      placeholder={String((() => { const r: Record<string,number>={tent:40,camper_trailer:50,caravan:55,cabin:120}; return r[trip.campingStyle]??45 })())}
+                      defaultValue={trip.campsiteRatePerNight ?? ''}
+                      onBlur={async e => {
+                        const val = parseFloat(e.target.value) || undefined
+                        await fetch(`/api/trips/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({campsiteRatePerNight: val}) })
+                        await fetch(`/api/trips/${id}/budget/regenerate`, { method: 'POST' })
+                        load()
+                      }} />
+                  </div>
+                  <span className="text-sm text-stone-400 dark:text-stone-500">/night</span>
+                </div>
+                <button
+                  onClick={async () => { await fetch(`/api/trips/${id}/budget/regenerate`, { method: 'POST' }); load() }}
+                  className="text-xs text-stone-400 dark:text-stone-500 hover:text-forest-600 dark:hover:text-forest-400 transition-colors shrink-0">
+                  ↻ Refresh
+                </button>
+              </div>
+              <p className="text-xs text-stone-400 dark:text-stone-500">Fill in Act. fields as you spend to track against estimates</p>
             </div>
           </div>
         )

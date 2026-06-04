@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { NextRequest } from 'next/server'
 import { readDb, writeDb, readSettings } from '@/lib/db'
 import { generateBudget } from '@/lib/rules'
+import { estimateRouteKm } from '@/lib/route'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -13,9 +14,14 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
 
   const settings  = readSettings()
   const waypoints = db.waypoints.filter(w => w.tripId === id)
+  const meals     = db.meals.filter(m => m.tripId === id)
+
+  const roadKm = waypoints.length > 0
+    ? await estimateRouteKm(waypoints, settings.homeLocation)
+    : undefined
 
   db.budgetItems = db.budgetItems.filter(b => b.tripId !== id)
-  db.budgetItems.push(...generateBudget(trip, settings, waypoints))
+  db.budgetItems.push(...generateBudget(trip, settings, waypoints, meals, roadKm))
   writeDb(db)
 
   return NextResponse.json({ ok: true })

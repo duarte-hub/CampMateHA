@@ -1,5 +1,5 @@
 import type {
-  Trip, PackingItem, ItineraryDay, Meal, BudgetItem, Reminder, Waypoint, AppSettings,
+  Trip, PackingItem, ItineraryDay, Meal, BudgetItem, Reminder, Waypoint, AppSettings, MealType,
 } from './types'
 
 function uid() { return crypto.randomUUID() }
@@ -434,6 +434,33 @@ export function generateMeals(trip: Trip): Meal[] {
 
 // ─── Budget ──────────────────────────────────────────────────────────────────
 
+// Fishing licence requirements by Australian state
+const FISHING_LICENCE: Record<string, { cost: number; note: string }> = {
+  QLD: { cost: 0,  note: 'No recreational fishing licence required in QLD' },
+  NSW: { cost: 0,  note: 'No recreational fishing licence required in NSW' },
+  VIC: { cost: 42, note: 'VIC Recreational Fishing Licence (~$42/adult/year)' },
+  SA:  { cost: 27, note: 'SA Recreational Fishing Licence (~$27/adult/year)' },
+  WA:  { cost: 0,  note: 'No recreational fishing licence required in WA' },
+  TAS: { cost: 30, note: 'TAS Inland Angling Licence (~$30/adult/year)' },
+  NT:  { cost: 0,  note: 'No recreational fishing licence required in NT' },
+  ACT: { cost: 15, note: 'ACT Fishing Licence (~$15/adult/year)' },
+}
+
+function detectState(destination: string): string | null {
+  const d = destination.toUpperCase()
+  if (d.includes('QLD') || d.includes('QUEENSLAND'))         return 'QLD'
+  if (d.includes(' NSW') || d.includes('NEW SOUTH WALES'))   return 'NSW'
+  if (d.includes(' VIC') || d.includes('VICTORIA'))          return 'VIC'
+  if (d.includes(' SA') || d.includes('SOUTH AUSTRALIA'))    return 'SA'
+  if (d.includes(' WA') || d.includes('WESTERN AUSTRALIA'))  return 'WA'
+  if (d.includes('TAS') || d.includes('TASMANIA'))           return 'TAS'
+  if (d.includes(' NT') || d.includes('NORTHERN TERRITORY')) return 'NT'
+  if (d.includes('ACT') || d.includes('CAPITAL TERRITORY'))  return 'ACT'
+  return null
+}
+
+const MEAL_RATE: Record<string, number> = { breakfast: 8, lunch: 10, dinner: 20, snack: 5 }
+
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -453,16 +480,23 @@ function estimateTripKm(waypoints: Waypoint[], home?: { lat: number; lng: number
   for (let i = 0; i < chain.length - 1; i++) {
     km += haversineKm(chain[i].lat, chain[i].lng, chain[i + 1].lat, chain[i + 1].lng)
   }
-  return Math.round(km * 1.35) // road factor
+  return Math.round(km * 1.35)
 }
 
-export function generateBudget(trip: Trip, settings?: AppSettings, waypoints?: Waypoint[]): BudgetItem[] {
-  const nights = nightsBetween(trip.startDate, trip.endDate)
+export function generateBudget(
+  trip: Trip,
+  settings?: AppSettings,
+  waypoints?: Waypoint[],
+  meals?: Meal[],
+  roadDistanceKm?: number,   // pre-fetched OSRM distance
+): BudgetItem[] {
+  const nights  = nightsBetween(trip.startDate, trip.endDate)
   const dayOnly = nights === 0
-  const adults = trip.adults
-  const kids = trip.kids
-  const people = adults + kids
-  const vc = settings?.vehicleConfig
+  const adults  = trip.adults
+  const kids    = trip.kids
+  const people  = adults + kids
+  const vc      = settings?.vehicleConfig
+  const state   = detectState(trip.destination)
 
   // ── Vehicle & fuel ──────────────────────────────────────────────────────
   const defaultL100: Record<string, number> = { '2wd': 9, 'suv': 11, 'van': 12, '4wd': 14 }
@@ -472,74 +506,95 @@ export function generateBudget(trip: Trip, settings?: AppSettings, waypoints?: W
   const fuelPriceL = vc?.fuelPricePerL ?? 2.10
 
   const wps = waypoints ?? []
-  const distanceKm = wps.length > 0
-    ? estimateTripKm(wps, settings?.homeLocation)
-    : dayOnly ? 200 : Math.max(300, nights * 200)
-  const fuelCost  = Math.round((distanceKm / 100) * l100 * fuelPriceL)
-  const fuelLabel = `Fuel — ~${distanceKm.toLocaleString()} km · ${l100.toFixed(1)} L/100 · $${fuelPriceL.toFixed(2)}/L`
+  const distanceKm = roadDistanceKm
+    ?? (wps.length > 0 ? estimateTripKm(wps, settings?.homeLocation) : dayOnly ? 200 : Math.max(300, nights * 200))
+  const distSource = roadDistanceKm ? 'road' : wps.length > 0 ? 'est.' : 'est.'
+  const fuelCost   = Math.round((distanceKm / 100) * l100 * fuelPriceL)
+  const fuelLabel  = `Fuel — ~${distanceKm.toLocaleString()} km (${distSource}) · ${l100.toFixed(1)} L/100 · $${fuelPriceL.toFixed(2)}/L`
 
   function item(category: string, name: string, estimatedCost: number): BudgetItem {
     return { id: uid(), tripId: trip.id, category, name, estimatedCost: Math.max(0, Math.round(estimatedCost)) }
   }
 
+  // ── Fishing licence (state-aware) ────────────────────────────────────────
+  function fishingItems(): BudgetItem[] {
+    if (!trip.activities.includes('fishing')) return []
+    const licence = state ? FISHING_LICENCE[state] : null
+    const licenceCost = licence?.cost ?? 25
+    const licenceNote = licence?.note ?? `Fishing licence × ${adults} adults (check state requirements)`
+    return [
+      item('Activities', licence ? licence.note : licenceNote, adults * licenceCost),
+      item('Activities', 'Bait & tackle', dayOnly ? 25 : 35),
+    ]
+  }
+
   // ── Day trip ─────────────────────────────────────────────────────────────
   if (dayOnly) {
-    const lunchCost   = Math.round(adults * 10 + kids * 7)
-    const snackCost   = Math.round(people * 8)
-    const subtotal    = fuelCost + lunchCost + snackCost
+    const lunchCost = Math.round(adults * 10 + kids * 7)
+    const snackCost = Math.round(people * 8)
+    const subtotal  = fuelCost + lunchCost + snackCost
     return [
       item('Transport', fuelLabel, fuelCost),
       item('Food', 'Packed lunch', lunchCost),
       item('Food', 'Snacks & drinks', snackCost),
-      ...(trip.activities.includes('fishing') ? [
-        item('Activities', `Fishing licences × ${adults}`, adults * 30),
-        item('Activities', 'Bait & tackle', 25),
-      ] : []),
-      ...(trip.activities.includes('4wd') ? [item('Activities', 'National park / track entry', 25)] : []),
-      ...(trip.activities.includes('kayaking') ? [item('Activities', `Kayak hire × ${people}`, people * 50)] : []),
+      ...fishingItems(),
+      ...(trip.activities.includes('4wd')     ? [item('Activities', 'National park / track entry', 25)] : []),
+      ...(trip.activities.includes('kayaking')? [item('Activities', `Kayak hire × ${people}`, people * 50)] : []),
       item('Miscellaneous', 'Contingency (10%)', Math.round(subtotal * 0.10)),
     ]
   }
 
   // ── Multi-night trip ─────────────────────────────────────────────────────
-  // Campsite rate by style (AUD/night)
-  const campsiteRates: Record<string, number> = { tent: 40, camper_trailer: 50, caravan: 55, cabin: 120 }
-  const campsiteRate = campsiteRates[trip.campingStyle] ?? 45
+  // Campsite: use trip's custom rate if set, otherwise style defaults
+  const defaultRates: Record<string, number> = { tent: 40, camper_trailer: 50, caravan: 55, cabin: 120 }
+  const campsiteRate = trip.campsiteRatePerNight ?? defaultRates[trip.campingStyle] ?? 45
   const campsiteCost = campsiteRate * nights
 
-  // Food: per-person per-meal (AUD, camp-cooked)
-  // Day 1: lunch + dinner only. Middle days: all 4 meals. Last day: breakfast + lunch only.
-  const kidFactor  = 0.65
-  const day1Food   = Math.round(adults * (10 + 20)         + kids * (10 + 20)         * kidFactor)
-  const fullDayF   = Math.round(adults * (8 + 10 + 20 + 5) + kids * (8 + 10 + 20 + 5) * kidFactor)
-  const lastDFood  = Math.round(adults * (8 + 10)          + kids * (8 + 10)           * kidFactor)
-  const middleDays = Math.max(0, nights - 1)
-  const groceryCost = day1Food + fullDayF * middleDays + lastDFood
-  const drinksCost  = Math.round(people * 8 * (nights + 1))
-  const iceCost     = nights * 8
+  // Food: use actual planned meals when available, otherwise estimate
+  const kidFactor = 0.65
+  let groceryCost: number
+  let groceryLabel: string
 
-  // Gas
-  const gasCans = Math.ceil(nights / 2) + 1
-  const gasCost = gasCans * 12
+  if (meals && meals.length > 0) {
+    groceryCost  = Math.round(
+      meals.reduce((sum, m) => {
+        const rate = MEAL_RATE[m.mealType as MealType] ?? 10
+        return sum + adults * rate + kids * rate * kidFactor
+      }, 0)
+    )
+    const mealCounts = meals.reduce<Record<string, number>>((acc, m) => {
+      acc[m.mealType] = (acc[m.mealType] ?? 0) + 1
+      return acc
+    }, {})
+    const parts = Object.entries(mealCounts).map(([t, n]) => `${n} ${t}`).join(', ')
+    groceryLabel = `Groceries — ${meals.length} planned meals (${parts})`
+  } else {
+    const day1Food  = Math.round(adults * (10 + 20) + kids * (10 + 20) * kidFactor)
+    const fullDayF  = Math.round(adults * (8 + 10 + 20 + 5) + kids * (8 + 10 + 20 + 5) * kidFactor)
+    const lastDFood = Math.round(adults * (8 + 10) + kids * (8 + 10) * kidFactor)
+    groceryCost  = day1Food + fullDayF * Math.max(0, nights - 1) + lastDFood
+    groceryLabel = `Groceries — ${people} people · ${nights + 1} days (estimated)`
+  }
 
-  const subtotal    = campsiteCost + fuelCost + groceryCost + drinksCost + iceCost + gasCost
+  const drinksCost = Math.round(people * 8 * (nights + 1))
+  const iceCost    = nights * 8
+  const gasCans    = Math.ceil(nights / 2) + 1
+  const gasCost    = gasCans * 12
+  const subtotal   = campsiteCost + fuelCost + groceryCost + drinksCost + iceCost + gasCost
   const contingency = Math.round(subtotal * 0.10)
 
   return [
     item('Campsite', `${trip.campingStyle.replace('_', ' ')} × ${nights} nights @ $${campsiteRate}/night`, campsiteCost),
     item('Transport', fuelLabel, fuelCost),
     item('Transport', 'Ferry / barge (if applicable)', 0),
-    item('Food', `Groceries — ${people} people · ${nights + 1} days`, groceryCost),
+    item('Food', groceryLabel, groceryCost),
     item('Food', 'Drinks & snacks', drinksCost),
     item('Food', 'Ice', iceCost),
     item('Camp Supplies', `Gas canisters × ${gasCans}`, gasCost),
-    ...(trip.activities.includes('campfire') ? [item('Camp Supplies', `Firewood × ${nights} nights`, nights * 15)] : []),
-    ...(trip.activities.includes('fishing') ? [
-      item('Activities', `Fishing licences × ${adults}`, adults * 30),
-      item('Activities', 'Bait & tackle', 35),
-    ] : []),
-    ...(trip.activities.includes('4wd') ? [item('Activities', 'National park / track entry', 25)] : []),
-    ...(trip.activities.includes('kayaking') ? [item('Activities', `Kayak hire × ${people}`, people * 50)] : []),
+    ...(trip.activities.includes('campfire')  ? [item('Camp Supplies', `Firewood × ${nights} nights`, nights * 15)] : []),
+    ...fishingItems(),
+    ...(trip.activities.includes('4wd')     ? [item('Activities', 'National park / track entry', 25)] : []),
+    ...(trip.activities.includes('kayaking')? [item('Activities', `Kayak hire × ${people}`, people * 50)] : []),
     item('Miscellaneous', 'Contingency (10%)', contingency),
   ]
 }

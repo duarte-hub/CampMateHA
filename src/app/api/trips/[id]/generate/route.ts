@@ -7,6 +7,7 @@ import {
   generateBudget,
   generateReminders,
 } from '@/lib/rules'
+import { estimateRouteKm } from '@/lib/route'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -26,12 +27,17 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
   const settings  = readSettings()
   const waypoints = db.waypoints.filter(w => w.tripId === id)
 
-  // Generate and insert
   db.itineraryDays.push(...generateItinerary(trip))
   db.packingItems.push(...generatePackingList(trip))
-  db.meals.push(...generateMeals(trip))
-  db.budgetItems.push(...generateBudget(trip, settings, waypoints))
+  const generatedMeals = generateMeals(trip)
+  db.meals.push(...generatedMeals)
   db.reminders.push(...generateReminders(trip))
+
+  // Budget: try OSRM for accurate distance, use generated meals for food cost
+  const roadKm = waypoints.length > 0
+    ? await estimateRouteKm(waypoints, settings.homeLocation)
+    : undefined
+  db.budgetItems.push(...generateBudget(trip, settings, waypoints, generatedMeals, roadKm))
 
   writeDb(db)
   return NextResponse.json({ ok: true })

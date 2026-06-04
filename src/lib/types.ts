@@ -20,6 +20,7 @@ export interface Trip {
   notes: string
   heroColor?: string
   heroImage?: string
+  campsiteRatePerNight?: number
   createdAt: string
   updatedAt: string
 }
