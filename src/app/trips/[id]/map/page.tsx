@@ -77,8 +77,9 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   const [vehicle,        setVehicleConfig]  = useState<VehicleConfig | null>(null)
   const [editingId,      setEditingId]      = useState<string | null>(null)
   const [editName,       setEditName]       = useState('')
-  const [buildingItin,   setBuildingItin]   = useState(false)
-  const [itinMsg,        setItinMsg]        = useState('')
+  const [rebuildStatus,  setRebuildStatus]  = useState<'idle' | 'pending' | 'done'>('idle')
+  const autoRebuildTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const initialWpLoad      = useRef(true)
   const [homeLoc,        setHomeLoc]        = useState<{ name: string; lat: number; lng: number } | null>(null)
   const [roadSegments,   setRoadSegments]   = useState<number[]>([])
   const [panelCollapsed, setPanelCollapsed] = useState(false)
@@ -113,12 +114,33 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
       setTripName(t.title || t.destination)
       setTripStart(t.startDate ?? '')
     })
-    fetch(`/api/trips/${id}/waypoints`).then(r => r.json()).then(setWaypoints)
+    fetch(`/api/trips/${id}/waypoints`).then(r => r.json()).then(wps => {
+      setWaypoints(wps)
+      setTimeout(() => { initialWpLoad.current = false }, 0)
+    })
     fetch('/api/settings').then(r => r.json()).then(d => {
       setHomeLoc(d.homeLocation ?? null)
       setVehicleConfig(d.vehicleConfig ?? null)
     })
   }, [id])
+
+  // Auto-rebuild itinerary + budget whenever waypoints change
+  useEffect(() => {
+    if (initialWpLoad.current) return
+    if (autoRebuildTimer.current) clearTimeout(autoRebuildTimer.current)
+    setRebuildStatus('pending')
+    autoRebuildTimer.current = setTimeout(async () => {
+      try {
+        if (waypoints.some(w => (w.nights ?? 0) > 0)) {
+          await fetch(`/api/trips/${id}/itinerary/from-waypoints`, { method: 'POST' })
+        }
+        await fetch(`/api/trips/${id}/budget/regenerate`, { method: 'POST' })
+        setRebuildStatus('done')
+        setTimeout(() => setRebuildStatus('idle'), 3000)
+      } catch { setRebuildStatus('idle') }
+    }, 1500)
+    return () => { if (autoRebuildTimer.current) clearTimeout(autoRebuildTimer.current) }
+  }, [waypoints, id])
 
   // Road distances
   useEffect(() => {
@@ -387,18 +409,6 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
     markersRef.current[idx]?.openPopup()
   }
 
-  async function buildItinerary() {
-    setBuildingItin(true); setItinMsg('')
-    try {
-      const res = await fetch(`/api/trips/${id}/itinerary/from-waypoints`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setItinMsg(`✓ Built ${data.days} itinerary days`)
-      setTimeout(() => setItinMsg(''), 4000)
-    } catch (e) { setItinMsg(e instanceof Error ? e.message : 'Failed') }
-    finally { setBuildingItin(false) }
-  }
-
   async function handleImport() {
     if (!importUrl.trim()) return
     setImporting(true); setImportErr(''); setFoundLocs([])
@@ -572,14 +582,10 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
                       <span>{sorted.length} stops</span>
                       <span>{sorted.reduce((s, w) => s + (w.nights ?? 1), 0)} nights total</span>
                     </div>
-                    {itinMsg && (
-                      <p className={`text-xs rounded p-2 ${itinMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{itinMsg}</p>
-                    )}
-                    <button onClick={buildItinerary} disabled={buildingItin}
-                      className="btn-primary w-full justify-center text-sm disabled:opacity-40">
-                      {buildingItin ? 'Building…' : '📅 Build Trip Itinerary'}
-                    </button>
-                    <p className="text-xs text-stone-400 text-center">Replaces the current itinerary tab</p>
+                    <div className="text-center text-xs h-4">
+                      {rebuildStatus === 'pending' && <span className="text-stone-400">⏳ Updating itinerary & budget…</span>}
+                      {rebuildStatus === 'done'    && <span className="text-forest-600">✓ Itinerary & budget updated</span>}
+                    </div>
                   </div>
                 </>
               )}

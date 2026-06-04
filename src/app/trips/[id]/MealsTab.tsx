@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Meal, MealTemplate, MealType, ShoppingItem, ShopCategory } from '@/lib/types'
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
@@ -225,9 +225,7 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
   const [shopItems,  setShopItems]  = useState<ShoppingItem[]>([])
   const [dates,      setDates]      = useState<string[]>([])
   const [picker,     setPicker]     = useState<{ date: string; mealType: MealType } | null>(null)
-  const [selected,   setSelected]   = useState<Set<string>>(new Set())
-  const [building,   setBuilding]   = useState(false)
-  const [buildMsg,   setBuildMsg]   = useState('')
+  const shopRebuildTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [shopView,   setShopView]   = useState<'aisle' | 'flat' | 'meal'>('aisle')
   const [planView,   setPlanView]   = useState<'day' | 'all'>('day')
   const [dragId,     setDragId]     = useState<string | null>(null)
@@ -252,10 +250,28 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
 
   useEffect(() => { loadShopItems() }, [loadShopItems])
 
-  // Pre-select all meals for shopping when meals change
-  useEffect(() => {
-    setSelected(new Set(meals.map(m => m.id)))
-  }, [meals])
+  function scheduleShopRebuild(currentMeals: Meal[]) {
+    if (shopRebuildTimer.current) clearTimeout(shopRebuildTimer.current)
+    shopRebuildTimer.current = setTimeout(async () => {
+      const checkedNames = new Set(shopItems.filter(s => s.checked).map(s => s.name.toLowerCase()))
+      await fetch(`/api/trips/${tripId}/shopping-list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mealIds: currentMeals.map(m => m.id) }),
+      })
+      const fresh: ShoppingItem[] = await fetch(`/api/trips/${tripId}/shopping-list`).then(r => r.json())
+      const toCheck = fresh.filter(s => checkedNames.has(s.name.toLowerCase()))
+      if (toCheck.length > 0) {
+        await Promise.all(toCheck.map(item =>
+          fetch(`/api/trips/${tripId}/shopping-list/${item.id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checked: true }),
+          })
+        ))
+      }
+      setShopItems(fresh.map(s => ({ ...s, checked: checkedNames.has(s.name.toLowerCase()) })))
+    }, 600)
+  }
 
   async function addMeal(date: string, mealType: MealType, template: MealTemplate) {
     const res = await fetch(`/api/trips/${tripId}/meals`, {
@@ -270,8 +286,10 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
       }),
     })
     const meal: Meal = await res.json()
-    setMeals(prev => [...prev, meal])
+    const next = [...meals, meal]
+    setMeals(next)
     setPicker(null)
+    scheduleShopRebuild(next)
   }
 
   async function addCustomMeal(date: string, mealType: MealType, name: string, notes: string) {
@@ -281,8 +299,10 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
       body: JSON.stringify({ date, mealType, title: name, notes }),
     })
     const meal: Meal = await res.json()
-    setMeals(prev => [...prev, meal])
+    const next = [...meals, meal]
+    setMeals(next)
     setPicker(null)
+    scheduleShopRebuild(next)
   }
 
   function openEditor(m: Meal) {
@@ -298,8 +318,10 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ingredientDetails: editIngs }),
     })
-    setMeals(prev => prev.map(m => m.id === mealId ? { ...m, ingredientDetails: editIngs } : m))
+    const next = meals.map(m => m.id === mealId ? { ...m, ingredientDetails: editIngs } : m)
+    setMeals(next)
     setEditingId(null)
+    scheduleShopRebuild(next)
   }
 
   async function moveMeal(mealId: string, newDate: string, newMealType: MealType) {
@@ -315,19 +337,24 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
 
   async function removeMeal(mealId: string) {
     await fetch(`/api/trips/${tripId}/meals/${mealId}`, { method: 'DELETE' })
-    setMeals(prev => prev.filter(m => m.id !== mealId))
+    const next = meals.filter(m => m.id !== mealId)
+    setMeals(next)
+    scheduleShopRebuild(next)
   }
 
   async function clearDay(date: string) {
     const dayMeals = meals.filter(m => m.date === date)
     await Promise.all(dayMeals.map(m => fetch(`/api/trips/${tripId}/meals/${m.id}`, { method: 'DELETE' })))
-    setMeals(prev => prev.filter(m => m.date !== date))
+    const next = meals.filter(m => m.date !== date)
+    setMeals(next)
+    scheduleShopRebuild(next)
   }
 
   async function clearAll() {
     if (!confirm('Clear all meals from every day? This cannot be undone.')) return
     await Promise.all(meals.map(m => fetch(`/api/trips/${tripId}/meals/${m.id}`, { method: 'DELETE' })))
     setMeals([])
+    scheduleShopRebuild([])
   }
 
   async function untickAll() {
@@ -340,24 +367,6 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
         body: JSON.stringify({ checked: false }),
       })
     ))
-  }
-
-  async function buildList() {
-    if (selected.size === 0) return
-    setBuilding(true); setBuildMsg('')
-    try {
-      const res = await fetch(`/api/trips/${tripId}/shopping-list`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mealIds: Array.from(selected) }),
-      })
-      const data = await res.json()
-      loadShopItems()
-      setBuildMsg(`✓ ${data.items} items added`)
-      setTab('shop')
-      setTimeout(() => setBuildMsg(''), 4000)
-    } catch { setBuildMsg('Failed to build list') }
-    finally { setBuilding(false) }
   }
 
   async function toggleShopItem(item: ShoppingItem) {
@@ -541,23 +550,10 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
                 </div>
               ))}
 
-              {/* Build shopping list CTA */}
-              {planView === 'day' && (
-                <div className="card p-4 space-y-3">
-                  <p className="text-sm font-semibold text-stone-700 dark:text-stone-300">
-                    {meals.length} meals planned · {selected.size} selected for shopping
-                  </p>
-                  {buildMsg && (
-                    <p className={`text-xs rounded p-2 ${buildMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{buildMsg}</p>
-                  )}
-                  <button onClick={buildList} disabled={building || selected.size === 0}
-                    className="btn-primary w-full justify-center text-sm disabled:opacity-40">
-                    {building ? '⏳ Building…' : '🛒 Build Shopping List'}
-                  </button>
-                  <p className="text-xs text-stone-400 text-center">
-                    Switch to Shopping List tab to choose which meals to include
-                  </p>
-                </div>
+              {planView === 'day' && meals.length > 0 && (
+                <p className="text-xs text-stone-400 dark:text-stone-500 text-center pb-1">
+                  Shopping list updates automatically as you plan meals
+                </p>
               )}
             </>
           )}
@@ -567,70 +563,6 @@ export default function MealsTab({ tripId, initialMeals }: Props) {
       {/* ── Shop tab ──────────────────────────────────────────────────────── */}
       {tab === 'shop' && (
         <div className="space-y-3">
-          {/* Meal selector */}
-          {meals.length > 0 && (
-            <div className="card overflow-hidden">
-              <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800 border-b border-stone-200 dark:border-stone-700 flex items-center justify-between">
-                <p className="text-sm font-bold text-stone-700 dark:text-stone-200">Select meals to shop for</p>
-                <div className="flex gap-2 text-xs">
-                  <button onClick={() => setSelected(new Set(meals.map(m => m.id)))} className="text-forest-600 dark:text-forest-400 hover:underline font-semibold">All</button>
-                  <span className="text-stone-300 dark:text-stone-600">|</span>
-                  <button onClick={() => setSelected(new Set())} className="text-stone-500 dark:text-stone-400 hover:underline">None</button>
-                </div>
-              </div>
-              <div className="divide-y divide-stone-100 dark:divide-stone-800 max-h-64 overflow-y-auto">
-                {dates.flatMap(date => {
-                  const dayMeals = meals.filter(m => m.date === date)
-                    .sort((a, b) => {
-                      const order: Record<string, number> = { breakfast: 0, lunch: 1, dinner: 2, snack: 3 }
-                      return (order[a.mealType] ?? 4) - (order[b.mealType] ?? 4)
-                    })
-                  if (dayMeals.length === 0) return []
-                  const allDay  = dayMeals.every(m => selected.has(m.id))
-                  const someDay = dayMeals.some(m => selected.has(m.id))
-                  return [
-                    <label key={`hd-${date}`}
-                      className="flex items-center gap-3 px-4 py-1.5 bg-stone-100 dark:bg-stone-800 cursor-pointer hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors">
-                      <input type="checkbox"
-                        ref={el => { if (el) el.indeterminate = someDay && !allDay }}
-                        checked={allDay}
-                        onChange={() => setSelected(prev => {
-                          const n = new Set(prev)
-                          dayMeals.forEach(m => allDay ? n.delete(m.id) : n.add(m.id))
-                          return n
-                        })}
-                        className="rounded border-stone-300 text-forest-600" />
-                      <p className="text-xs font-bold text-stone-600 dark:text-stone-300">{fmtDate(date)}</p>
-                    </label>,
-                    ...dayMeals.map(m => {
-                      const mt = MEAL_TYPES.find(t => t.value === m.mealType)
-                      return (
-                        <label key={m.id} className="flex items-center gap-3 px-4 py-2 hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer">
-                          <input type="checkbox" checked={selected.has(m.id)}
-                            onChange={() => setSelected(prev => {
-                              const n = new Set(prev)
-                              n.has(m.id) ? n.delete(m.id) : n.add(m.id)
-                              return n
-                            })}
-                            className="rounded border-stone-300 text-forest-600" />
-                          <span className="text-sm shrink-0">{mt?.icon}</span>
-                          <span className="text-sm text-stone-700 dark:text-stone-200">{m.title}</span>
-                        </label>
-                      )
-                    }),
-                  ]
-                })}
-              </div>
-              <div className="px-4 py-3 border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 flex items-center justify-between gap-3">
-                <p className="text-xs text-stone-500 dark:text-stone-400">{selected.size} of {meals.length} meals selected</p>
-                {buildMsg && <p className={`text-xs ${buildMsg.startsWith('✓') ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{buildMsg}</p>}
-                <button onClick={buildList} disabled={building || selected.size === 0}
-                  className="btn-primary text-sm disabled:opacity-40">
-                  {building ? 'Building…' : '🛒 Build list'}
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Shopping list */}
           {shopItems.length > 0 ? (
