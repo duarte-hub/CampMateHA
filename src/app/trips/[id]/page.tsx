@@ -290,6 +290,12 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
         >
           🗺️ Map
         </Link>
+        <Link
+          href={`/trips/${id}/log`}
+          className="inline-flex items-center pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] tab-inactive"
+        >
+          ⛽ Log
+        </Link>
       </div>
 
       {/* Overview Tab */}

@@ -153,6 +153,18 @@ export interface AppSettings {
   driveConfig?: DriveConfig
 }
 
+export interface FuelEntry {
+  id: string
+  tripId: string
+  timestamp: string
+  litres: number
+  pricePerL: number
+  totalCost: number
+  location?: { lat: number; lng: number; name: string }
+  odometer?: number
+  notes?: string
+}
+
 export interface PackingTemplate {
   id: string
   name: string
@@ -171,4 +183,5 @@ export interface AppDatabase {
   shoppingItems: ShoppingItem[]
   mealTemplates: MealTemplate[]
   packingTemplates: PackingTemplate[]
+  fuelLog: FuelEntry[]
 }
