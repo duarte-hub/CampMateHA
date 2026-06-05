@@ -27,6 +27,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
+# HTTPS wrapper — patches http→https when certs are mounted at /app/certs/
+COPY server-https.js ./
+
 LABEL org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.title="CampMate" \
       org.opencontainers.image.description="Camping trip planner for Home Assistant / Unraid" \
@@ -37,4 +40,4 @@ EXPOSE 3000
 
 VOLUME ["/data"]
 
-CMD ["node", "server.js"]
+CMD ["node", "server-https.js"]
