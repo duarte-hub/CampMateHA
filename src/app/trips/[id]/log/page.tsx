@@ -64,7 +64,13 @@ export default function LogPage({ params }: { params: Promise<{ id: string }> })
       setLocation({ lat, lng, name })
     } catch (e) {
       const err = e as GeolocationPositionError
-      setGeoError(err.code === 1 ? 'Location permission denied' : 'Could not get location — try again')
+      if (err.code === 1) {
+        setGeoError('Location access denied — please enable it in your browser/device settings, then try again')
+      } else if (err.code === 3) {
+        setGeoError('Location timed out — make sure GPS is on and try again')
+      } else {
+        setGeoError('Could not get location — try again')
+      }
     }
     setLocating(false)
   }

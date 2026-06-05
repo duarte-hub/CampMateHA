@@ -175,8 +175,22 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-48">
-      <div className="text-stone-400 text-sm">Loading trip...</div>
+    <div className="space-y-4 animate-pulse">
+      {/* Hero skeleton — same shape as real hero */}
+      <div className="rounded-2xl px-5 py-5 bg-gradient-to-br from-stone-200 to-stone-300 dark:from-stone-700 dark:to-stone-800 shadow-md">
+        <div className="h-2.5 w-12 bg-stone-300 dark:bg-stone-600 rounded mb-3" />
+        <div className="h-6 w-48 bg-stone-300 dark:bg-stone-600 rounded mb-2" />
+        <div className="h-4 w-64 bg-stone-200 dark:bg-stone-700 rounded" />
+      </div>
+      {/* Tab bar skeleton */}
+      <div className="flex gap-4 border-b border-stone-200 dark:border-stone-700 pb-2.5 -mx-4 px-4">
+        {[60, 72, 88, 56, 64, 44, 44].map((w, i) => (
+          <div key={i} className="h-3.5 rounded bg-stone-200 dark:bg-stone-700" style={{ width: w }} />
+        ))}
+      </div>
+      {/* Content skeleton */}
+      <div className="h-24 rounded-2xl bg-stone-100 dark:bg-stone-800" />
+      <div className="h-16 rounded-2xl bg-stone-100 dark:bg-stone-800" />
     </div>
   )
   if (!trip) return null
