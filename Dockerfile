@@ -27,18 +27,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# HTTPS wrapper
-COPY server-https.js ./
-
-# Bake in a self-signed cert so HTTPS always works out of the box.
-# Mount trusted mkcert certs at /app/certs/ to skip the browser warning.
-RUN apk add --no-cache openssl && \
-    mkdir -p /app/certs && \
-    openssl req -x509 -newkey rsa:2048 \
-        -keyout /app/certs/key.pem \
-        -out    /app/certs/cert.pem \
-        -days 3650 -nodes \
-        -subj "/CN=campmate"
+# HTTPS wrapper + entrypoint
+COPY server-https.js entrypoint.sh ./
+RUN chmod +x entrypoint.sh && apk add --no-cache openssl
 
 LABEL org.opencontainers.image.version="1.0.0" \
       org.opencontainers.image.title="CampMate" \
@@ -50,4 +41,4 @@ EXPOSE 3000
 
 VOLUME ["/data"]
 
-CMD ["node", "server-https.js"]
+ENTRYPOINT ["sh", "entrypoint.sh"]

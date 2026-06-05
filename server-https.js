@@ -23,8 +23,8 @@ require('./server.js')
 
 function startHttps() {
   const tlsOpts = {
-    key:  readFileSync('/app/certs/key.pem'),
-    cert: readFileSync('/app/certs/cert.pem'),
+    key:  readFileSync('/data/certs/key.pem'),
+    cert: readFileSync('/data/certs/cert.pem'),
   }
 
   https.createServer(tlsOpts, (req, res) => {
