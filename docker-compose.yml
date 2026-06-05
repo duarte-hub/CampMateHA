@@ -7,7 +7,8 @@ services:
       - "3000:3000"
     volumes:
       - campmate_data:/data
-      - ./certs:/app/certs:ro
+      # Optionally mount trusted mkcert certs to skip the browser warning:
+      # - ./certs:/app/certs:ro
     environment:
       - DATA_DIR=/data
       - NODE_ENV=production

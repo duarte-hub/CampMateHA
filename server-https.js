@@ -1,58 +1,46 @@
 'use strict'
-// If certs are mounted at /app/certs/ this starts Next.js on an internal
-// loopback port and places a real HTTPS server in front of it.
-// Without certs it just runs the plain HTTP server unchanged.
+// Runs Next.js on an internal loopback port, then starts a real HTTPS
+// server on the public port that proxies through to it.
+// Certs are baked into the image; mount trusted certs at /app/certs/ to
+// skip the browser security warning.
 
-const { readFileSync, existsSync } = require('fs')
+const { readFileSync } = require('fs')
 const https = require('https')
 const http  = require('http')
 
-const KEY  = '/app/certs/key.pem'
-const CERT = '/app/certs/cert.pem'
+const OUTER = parseInt(process.env.PORT     || '3000',      10)
+const INNER = OUTER + 100   // Next.js binds here on loopback only
 
-if (!existsSync(KEY) || !existsSync(CERT)) {
-  console.log('▲ CampMate — HTTP mode (mount certs at /app/certs/ for HTTPS)')
-  require('./server.js')
-} else {
-  const OUTER = parseInt(process.env.PORT || '3000', 10)
-  const INNER = OUTER + 100   // Next.js binds here, never exposed
+process.env.PORT     = String(INNER)
+process.env.HOSTNAME = '127.0.0.1'
+require('./server.js')
 
-  // Tell Next.js to bind on loopback only
-  process.env.PORT     = String(INNER)
-  process.env.HOSTNAME = '127.0.0.1'
-  require('./server.js')
+// Poll until Next.js is ready, then start the HTTPS front
+;(function wait() {
+  http.get(`http://127.0.0.1:${INNER}/`, () => startHttps())
+      .on('error',                        () => setTimeout(wait, 400))
+})()
 
-  // Poll until Next.js is accepting connections, then start HTTPS proxy
-  function waitThenProxy() {
-    http.get(`http://127.0.0.1:${INNER}/`, () => startProxy())
-        .on('error',  () => setTimeout(waitThenProxy, 300))
+function startHttps() {
+  const tlsOpts = {
+    key:  readFileSync('/app/certs/key.pem'),
+    cert: readFileSync('/app/certs/cert.pem'),
   }
 
-  function startProxy() {
-    const tlsOpts = { key: readFileSync(KEY), cert: readFileSync(CERT) }
-
-    https.createServer(tlsOpts, (req, res) => {
-      const upstream = http.request({
+  https.createServer(tlsOpts, (req, res) => {
+    const proxy = http.request(
+      {
         hostname: '127.0.0.1',
         port:     INNER,
         path:     req.url,
         method:   req.method,
-        headers:  {
-          ...req.headers,
-          'x-forwarded-proto': 'https',
-          'x-forwarded-for':   req.socket.remoteAddress,
-        },
-      }, (upRes) => {
-        res.writeHead(upRes.statusCode, upRes.headers)
-        upRes.pipe(res, { end: true })
-      })
-
-      upstream.on('error', () => { res.writeHead(502); res.end() })
-      req.pipe(upstream, { end: true })
-    }).listen(OUTER, '0.0.0.0', () => {
-      console.log(`▲ CampMate — HTTPS :${OUTER}  (Next.js HTTP :${INNER})`)
-    })
-  }
-
-  waitThenProxy()
+        headers:  { ...req.headers, 'x-forwarded-proto': 'https' },
+      },
+      (up) => { res.writeHead(up.statusCode, up.headers); up.pipe(res, { end: true }) }
+    )
+    proxy.on('error', () => { res.writeHead(502); res.end() })
+    req.pipe(proxy, { end: true })
+  }).listen(OUTER, '0.0.0.0', () =>
+    console.log(`▲ CampMate HTTPS :${OUTER}  (Next.js HTTP :${INNER})`)
+  )
 }
