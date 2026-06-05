@@ -310,9 +310,26 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
                   {(day.activities.length > 0 || day.notes) && (
                     <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700">
                       {day.activities.length > 0 && (
-                        <div className="ml-1 pl-3 border-l-2 border-stone-200 dark:border-stone-700 space-y-1.5">
+                        <div className="ml-1 pl-3 border-l-2 border-stone-200 dark:border-stone-700 space-y-1">
                           {day.activities.map((a, i) => (
-                            <p key={i} className="text-sm text-stone-600 dark:text-stone-400">{a}</p>
+                            <div key={i} className="flex items-start gap-1.5 group">
+                              <p className="text-sm text-stone-600 dark:text-stone-400 flex-1">{a}</p>
+                              <button
+                                onClick={async () => {
+                                  const updated = day.activities.filter((_, j) => j !== i)
+                                  await fetch(`/api/trips/${id}/itinerary/${day.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ activities: updated }),
+                                  })
+                                  setTrip(t => t ? {
+                                    ...t,
+                                    itinerary: t.itinerary.map(d => d.id === day.id ? { ...d, activities: updated } : d),
+                                  } : t)
+                                }}
+                                className="opacity-0 group-hover:opacity-100 text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-all shrink-0 mt-0.5"
+                              >✕</button>
+                            </div>
                           ))}
                         </div>
                       )}
