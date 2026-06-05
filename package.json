@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --experimental-https --experimental-https-key certs/key.pem --experimental-https-cert certs/cert.pem --hostname 0.0.0.0",
+    "dev": "next dev --turbopack --experimental-https --experimental-https-key certs/key.pem --experimental-https-cert certs/cert.pem --hostname 192.168.20.121",
+    "dev:local": "next dev --turbopack --experimental-https --experimental-https-key certs/key.pem --experimental-https-cert certs/cert.pem",
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint"
