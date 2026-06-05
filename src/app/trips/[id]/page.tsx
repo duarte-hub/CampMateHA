@@ -1,23 +1,12 @@
 'use client'
 
-import { useEffect, useState, use, useRef } from 'react'
+import { useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { TripWithDetails, PackingItem, BudgetItem, Booking, BookingType } from '@/lib/types'
 import MealsTab from './MealsTab'
-import ImageEditor from './ImageEditor'
 
 type Tab = 'overview' | 'itinerary' | 'packing' | 'meals' | 'budget'
-
-const STYLE_GRADIENT: Record<string, string> = {
-  tent:           'from-forest-700 via-forest-800 to-forest-900',
-  camper_trailer: 'from-amber-600 via-amber-700 to-amber-900',
-  caravan:        'from-blue-700 via-blue-800 to-blue-900',
-  cabin:          'from-indigo-700 via-indigo-800 to-indigo-900',
-}
-const STYLE_ICON: Record<string, string> = {
-  tent: '⛺', camper_trailer: '🚐', caravan: '🚌', cabin: '🏠',
-}
 
 const SEVERITY_STYLE = {
   critical: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300',
@@ -29,20 +18,16 @@ const SEVERITY_ICON = { critical: '🚨', warning: '⚠️', info: 'ℹ️' }
 export default function TripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const tab = (searchParams.get('tab') ?? 'overview') as Tab
+
   const [trip, setTrip] = useState<TripWithDetails | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<Tab>('overview')
   const [newItem, setNewItem] = useState('')
   const [newCategory, setNewCategory] = useState('Custom')
-  const [deleting, setDeleting] = useState(false)
   const [loadingLib, setLoadingLib] = useState(false)
   const [libMsg, setLibMsg] = useState('')
-  const [editingHero, setEditingHero] = useState(false)
-  const [editColor, setEditColor] = useState('')
-  const [editImage, setEditImage] = useState('')
-  const [savingHero, setSavingHero] = useState(false)
-  const [showReminders,       setShowReminders]       = useState(false)
-  const [imageEditorSrc,      setImageEditorSrc]      = useState<string | null>(null)
+  const [showReminders, setShowReminders] = useState(false)
   // Bookings
   const [addingBookingDayId,  setAddingBookingDayId]  = useState<string | null>(null)
   const [bkName,              setBkName]              = useState('')
@@ -52,7 +37,6 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [bkUrl,               setBkUrl]               = useState('')
   const [bkNotes,             setBkNotes]             = useState('')
   const [savingBooking,       setSavingBooking]        = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     const res = await fetch(`/api/trips/${id}`)
@@ -143,25 +127,6 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
     setTrip(t => t ? { ...t, bookings: (t.bookings ?? []).map(b => b.id === booking.id ? updated : b) } : t)
   }
 
-  async function saveHero() {
-    setSavingHero(true)
-    await fetch(`/api/trips/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ heroColor: editColor, heroImage: editImage }),
-    })
-    setTrip(t => t ? { ...t, heroColor: editColor, heroImage: editImage } : t)
-    setEditingHero(false)
-    setSavingHero(false)
-  }
-
-  async function deleteTrip() {
-    if (!confirm('Delete this trip? This cannot be undone.')) return
-    setDeleting(true)
-    await fetch(`/api/trips/${id}`, { method: 'DELETE' })
-    router.push('/')
-  }
-
   async function updateBudget(itemId: string, field: 'estimatedCost' | 'actualCost', value: number) {
     await fetch(`/api/trips/${id}/budget/${itemId}`, {
       method: 'PATCH',
@@ -175,22 +140,10 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   }
 
   if (loading) return (
-    <div className="space-y-4 animate-pulse">
-      {/* Hero skeleton — same shape as real hero */}
-      <div className="rounded-2xl px-5 py-5 bg-gradient-to-br from-stone-200 to-stone-300 dark:from-stone-700 dark:to-stone-800 shadow-md">
-        <div className="h-2.5 w-12 bg-stone-300 dark:bg-stone-600 rounded mb-3" />
-        <div className="h-6 w-48 bg-stone-300 dark:bg-stone-600 rounded mb-2" />
-        <div className="h-4 w-64 bg-stone-200 dark:bg-stone-700 rounded" />
-      </div>
-      {/* Tab bar skeleton */}
-      <div className="flex gap-4 border-b border-stone-200 dark:border-stone-700 pb-2.5 -mx-4 px-4">
-        {[60, 72, 88, 56, 64, 44, 44].map((w, i) => (
-          <div key={i} className="h-3.5 rounded bg-stone-200 dark:bg-stone-700" style={{ width: w }} />
-        ))}
-      </div>
-      {/* Content skeleton */}
-      <div className="h-24 rounded-2xl bg-stone-100 dark:bg-stone-800" />
+    <div className="space-y-3 animate-pulse">
+      <div className="h-28 rounded-2xl bg-stone-100 dark:bg-stone-800" />
       <div className="h-16 rounded-2xl bg-stone-100 dark:bg-stone-800" />
+      <div className="h-20 rounded-2xl bg-stone-100 dark:bg-stone-800" />
     </div>
   )
   if (!trip) return null
@@ -202,151 +155,6 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div className="space-y-4">
-      {/* Hero header */}
-      <div
-        className={`rounded-2xl px-5 py-4 text-white shadow-md relative overflow-hidden ${!trip.heroColor && !trip.heroImage ? `bg-gradient-to-br ${STYLE_GRADIENT[trip.campingStyle] ?? 'from-forest-700 to-forest-900'}` : ''}`}
-        style={
-          trip.heroImage
-            ? { backgroundImage: `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.55)),url(${trip.heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-            : trip.heroColor
-              ? { backgroundColor: trip.heroColor, backgroundImage: 'linear-gradient(135deg,rgba(0,0,0,0.05),rgba(0,0,0,0.38))' }
-              : {}
-        }
-      >
-        {!trip.heroImage && (
-          <div className="absolute right-2 top-0 text-[90px] leading-none opacity-[0.08] select-none pointer-events-none">
-            {STYLE_ICON[trip.campingStyle]}
-          </div>
-        )}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <Link href="/" className="text-xs font-medium text-white/50 hover:text-white/80 transition-colors">
-              ← All trips
-            </Link>
-            <h1 className="text-xl font-bold mt-0.5 leading-tight">{trip.title || trip.destination}</h1>
-            <p className="text-white/70 text-sm mt-0.5 truncate">
-              📍 {trip.destination} · {fmtDate(trip.startDate)}{nights > 0 ? ` – ${fmtDate(trip.endDate)} · ${nights} night${nights !== 1 ? 's' : ''}` : ' · Day trip'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link href={`/trips/${id}/share`} className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
-              Share
-            </Link>
-            <button onClick={deleteTrip} disabled={deleting} className="text-xs font-semibold text-white/50 hover:text-white/80 transition-colors px-2 py-1.5">
-              Delete
-            </button>
-          </div>
-        </div>
-        <button
-          onClick={() => { setEditColor(trip.heroColor ?? ''); setEditImage(trip.heroImage ?? ''); setEditingHero(e => !e) }}
-          className="absolute bottom-2 right-3 text-[10px] font-medium text-white/35 hover:text-white/70 transition-colors"
-        >
-          ✎ Customise
-        </button>
-      </div>
-
-      {/* Hero edit panel */}
-      {editingHero && (
-        <div className="card p-4 space-y-3 -mt-2">
-          {imageEditorSrc ? (
-            <ImageEditor
-              src={imageEditorSrc}
-              onApply={url => { setEditImage(url); setImageEditorSrc(null) }}
-              onCancel={() => setImageEditorSrc(null)}
-            />
-          ) : (
-            <>
-              <div className="flex gap-4 flex-wrap">
-                <div className="space-y-1">
-                  <label className="label text-xs">Banner colour</label>
-                  <div className="flex items-center gap-2">
-                    <input type="color" value={editColor || '#15803d'} onChange={e => setEditColor(e.target.value)}
-                      className="h-9 w-14 rounded border border-stone-300 dark:border-stone-600 cursor-pointer p-0.5 bg-white dark:bg-stone-800" />
-                    {editColor && (
-                      <button onClick={() => setEditColor('')} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1 min-w-48 space-y-1">
-                  <label className="label text-xs">Background image</label>
-                  <div className="flex gap-2">
-                    <input className="input text-sm flex-1 min-w-0" placeholder="https://example.com/photo.jpg"
-                      value={editImage.startsWith('data:') ? '' : editImage}
-                      onChange={e => setEditImage(e.target.value)} />
-                    <button type="button" onClick={() => fileInputRef.current?.click()}
-                      className="btn-secondary text-xs shrink-0">
-                      Upload
-                    </button>
-                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
-                      onChange={e => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-                        const reader = new FileReader()
-                        reader.onload = ev => {
-                          const result = ev.target?.result
-                          if (typeof result === 'string') setImageEditorSrc(result)
-                        }
-                        reader.readAsDataURL(file)
-                        // reset so same file can be re-selected
-                        e.target.value = ''
-                      }} />
-                  </div>
-                  {editImage && (
-                    <div className="flex items-center gap-2">
-                      {editImage.startsWith('data:') && (
-                        <button onClick={() => setImageEditorSrc(editImage)}
-                          className="text-xs text-forest-600 dark:text-forest-400 hover:underline">
-                          ✎ Re-edit crop
-                        </button>
-                      )}
-                      <button onClick={() => setEditImage('')} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200">
-                        Remove image
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setEditingHero(false)} className="btn-secondary text-xs">Cancel</button>
-                <button onClick={saveHero} disabled={savingHero} className="btn-primary text-xs disabled:opacity-40">
-                  {savingHero ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex border-b border-stone-200 dark:border-stone-700 gap-1 overflow-x-auto -mx-4 px-4">
-        {(['overview', 'itinerary', 'packing', 'meals', 'budget'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] ${tab === t ? 'tab-active' : 'tab-inactive'}`}
-          >
-            {t === 'overview' && '📋 Overview'}
-            {t === 'itinerary' && '📅 Itinerary'}
-            {t === 'packing' && `🎒 Packing${packingPct > 0 ? ` (${packingPct}%)` : ''}`}
-            {t === 'meals' && '🍳 Meals'}
-            {t === 'budget' && '💰 Budget'}
-          </button>
-        ))}
-        <Link
-          href={`/trips/${id}/map`}
-          className="inline-flex items-center pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] tab-inactive"
-        >
-          🗺️ Map
-        </Link>
-        <Link
-          href={`/trips/${id}/log`}
-          className="inline-flex items-center pb-2 pt-1 px-1 text-sm font-medium whitespace-nowrap transition-all min-h-[44px] tab-inactive"
-        >
-          ⛽ Log
-        </Link>
-      </div>
 
       {/* Overview Tab */}
       {tab === 'overview' && (

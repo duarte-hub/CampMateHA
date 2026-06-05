@@ -71,7 +71,6 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   const updateWpRef   = useRef<((id: string, patch: Partial<Waypoint>) => Promise<void>) | null>(null)
 
   const [waypoints,      setWaypoints]      = useState<Waypoint[]>([])
-  const [tripName,       setTripName]       = useState('')
   const [tripStart,      setTripStart]      = useState('')
   const [tab,            setTab]            = useState<'stops' | 'fuel' | 'import'>('stops')
   const [vehicle,        setVehicleConfig]  = useState<VehicleConfig | null>(null)
@@ -111,7 +110,6 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   // Load data
   useEffect(() => {
     fetch(`/api/trips/${id}`).then(r => r.json()).then(t => {
-      setTripName(t.title || t.destination)
       setTripStart(t.startDate ?? '')
     })
     fetch(`/api/trips/${id}/waypoints`).then(r => r.json()).then(wps => {
@@ -462,17 +460,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
     : Math.round(sorted.length > 1 ? sorted.slice(1).reduce((sum, wp, i) => sum + haversineKm(sorted[i], wp) * 1.35, 0) : 0)
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 60px)' }}>
-      {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-stone-200 bg-white shrink-0">
-        <Link href={`/trips/${id}`} className="text-stone-400 hover:text-stone-700 text-sm">← {tripName || 'Trip'}</Link>
-        <span className="font-bold text-stone-800">🗺️ Map</span>
-        {waypoints.length > 0 && (
-          <span className="ml-auto text-xs text-stone-400">
-            {sorted.length} stop{sorted.length !== 1 ? 's' : ''}{totalKm > 0 && ` · ~${totalKm} km`}
-          </span>
-        )}
-      </div>
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 84px - var(--trip-header-height, 168px))' }}>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}

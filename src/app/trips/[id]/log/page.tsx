@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
-import Link from 'next/link'
 import type { FuelEntry } from '@/lib/types'
 
 function fmt(ts: string) {
@@ -14,7 +13,6 @@ export default function LogPage({ params }: { params: Promise<{ id: string }> })
   const { id } = use(params)
 
   const [entries,    setEntries]    = useState<FuelEntry[]>([])
-  const [tripName,   setTripName]   = useState('')
   const [locating,   setLocating]   = useState(false)
   const [saving,     setSaving]     = useState(false)
   const [geoError,   setGeoError]   = useState('')
@@ -31,7 +29,6 @@ export default function LogPage({ params }: { params: Promise<{ id: string }> })
     : ''
 
   useEffect(() => {
-    fetch(`/api/trips/${id}`).then(r => r.json()).then(t => setTripName(t.title || t.destination))
     reload()
   }, [id])
 
@@ -102,13 +99,6 @@ export default function LogPage({ params }: { params: Promise<{ id: string }> })
 
   return (
     <div className="max-w-xl mx-auto space-y-5">
-      {/* Header */}
-      <div>
-        <Link href={`/trips/${id}`} className="text-xs font-medium text-stone-400 hover:text-stone-600 transition-colors">
-          ← {tripName || 'Trip'}
-        </Link>
-        <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100 mt-0.5">⛽ Fuel Log</h1>
-      </div>
 
       {/* Summary strip */}
       {entries.length > 0 && (
