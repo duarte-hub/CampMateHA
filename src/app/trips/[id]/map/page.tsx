@@ -194,6 +194,9 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
       map.on('click', () => { setCtxMenu(null); setShowResults(false) })
 
       mapObj.current = map
+
+      // Ensure Leaflet fills the container after layout dimensions settle
+      setTimeout(() => map.invalidateSize(), 100)
     })
     return () => { mapObj.current?.remove(); mapObj.current = null }
   }, [])
@@ -460,7 +463,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
     : Math.round(sorted.length > 1 ? sorted.slice(1).reduce((sum, wp, i) => sum + haversineKm(sorted[i], wp) * 1.35, 0) : 0)
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100dvh - 84px - var(--trip-header-height, 168px))' }}>
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 84px - var(--trip-header-height, 168px))' }}>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
