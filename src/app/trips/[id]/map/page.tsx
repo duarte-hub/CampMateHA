@@ -156,6 +156,8 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   useEffect(() => {
     if (!mapRef.current || mapObj.current) return
 
+    const container = mapRef.current
+
     // Leaflet core CSS
     const leafletCss = document.createElement('link')
     leafletCss.rel = 'stylesheet'
@@ -168,39 +170,60 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
     gestureCss.href = 'https://unpkg.com/leaflet-gesture-handling@1.2.2/dist/leaflet-gesture-handling.min.css'
     document.head.appendChild(gestureCss)
 
-    Promise.all([
-      import('leaflet'),
-      import('leaflet-gesture-handling'),
-    ]).then(([{ default: L }, { GestureHandling }]) => {
-      if (!mapRef.current || mapObj.current) return
+    let ro: ResizeObserver | null = null
 
-      // Register the gesture handler
-      L.Map.addInitHook('addHandler', 'gestureHandling', GestureHandling)
+    function initLeaflet() {
+      Promise.all([
+        import('leaflet'),
+        import('leaflet-gesture-handling'),
+      ]).then(([{ default: L }, { GestureHandling }]) => {
+        if (!container || mapObj.current) return
 
-      const map = L.map(mapRef.current, {
-        gestureHandling: true,
-        zoomControl: false, zoomSnap: 0.5, zoomDelta: 0.5,
-        wheelPxPerZoomLevel: 120, wheelDebounceTime: 40,
-      } as Parameters<typeof L.map>[1]).setView([-25.5, 134], 5)
-      L.control.zoom({ position: 'bottomright' }).addTo(map)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map)
+        L.Map.addInitHook('addHandler', 'gestureHandling', GestureHandling)
 
-      map.on('contextmenu', (e: import('leaflet').LeafletMouseEvent) => {
-        setCtxMenu({ x: e.containerPoint.x, y: e.containerPoint.y, lat: e.latlng.lat, lng: e.latlng.lng })
-        setCtxName('')
-        setCtxPosition(-1)
+        const map = L.map(container, {
+          gestureHandling: true,
+          zoomControl: false, zoomSnap: 0.5, zoomDelta: 0.5,
+          wheelPxPerZoomLevel: 120, wheelDebounceTime: 40,
+        } as Parameters<typeof L.map>[1]).setView([-25.5, 134], 5)
+        L.control.zoom({ position: 'bottomright' }).addTo(map)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
+        }).addTo(map)
+
+        map.on('contextmenu', (e: import('leaflet').LeafletMouseEvent) => {
+          setCtxMenu({ x: e.containerPoint.x, y: e.containerPoint.y, lat: e.latlng.lat, lng: e.latlng.lng })
+          setCtxName('')
+          setCtxPosition(-1)
+        })
+        map.on('click', () => { setCtxMenu(null); setShowResults(false) })
+
+        mapObj.current = map
+
+        // Notify Leaflet whenever the container is resized (e.g. when the
+        // layout CSS variable settles after first render)
+        ro = new ResizeObserver(() => map.invalidateSize())
+        ro.observe(container)
       })
-      map.on('click', () => { setCtxMenu(null); setShowResults(false) })
+    }
 
-      mapObj.current = map
+    // If the container already has dimensions, init immediately.
+    // Otherwise wait for the first resize that gives it real dimensions.
+    if (container.clientWidth > 0 && container.clientHeight > 0) {
+      initLeaflet()
+    } else {
+      const waitRo = new ResizeObserver(() => {
+        if (container.clientWidth > 0 && container.clientHeight > 0) {
+          waitRo.disconnect()
+          initLeaflet()
+        }
+      })
+      waitRo.observe(container)
+      ro = waitRo
+    }
 
-      // Ensure Leaflet fills the container after layout dimensions settle
-      setTimeout(() => map.invalidateSize(), 100)
-    })
-    return () => { mapObj.current?.remove(); mapObj.current = null }
+    return () => { ro?.disconnect(); mapObj.current?.remove(); mapObj.current = null }
   }, [])
 
   const updateWaypoint = useCallback(async (wpId: string, patch: Partial<Waypoint>) => {
