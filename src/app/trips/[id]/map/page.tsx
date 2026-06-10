@@ -93,8 +93,9 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   const searchRef = useRef<HTMLDivElement>(null)
 
   // Right-click context menu
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; lat: number; lng: number } | null>(null)
-  const [ctxName, setCtxName] = useState('')
+  const [ctxMenu,     setCtxMenu]     = useState<{ x: number; y: number; lat: number; lng: number } | null>(null)
+  const [ctxName,     setCtxName]     = useState('')
+  const [ctxPosition, setCtxPosition] = useState(-1)  // -1 = append at end
 
   // Navigate target pin
   const [navTarget, setNavTarget] = useState<{ name: string; lat: number; lng: number } | null>(null)
@@ -190,6 +191,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
       map.on('contextmenu', (e: import('leaflet').LeafletMouseEvent) => {
         setCtxMenu({ x: e.containerPoint.x, y: e.containerPoint.y, lat: e.latlng.lat, lng: e.latlng.lng })
         setCtxName('')
+        setCtxPosition(-1)
       })
       map.on('click', () => { setCtxMenu(null); setShowResults(false) })
 
@@ -442,8 +444,27 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
   async function addCtxStop() {
     if (!ctxMenu) return
     const name = ctxName.trim() || `Stop ${waypoints.length + 1}`
-    await addWaypointFn({ lat: ctxMenu.lat, lng: ctxMenu.lng, name })
-    setCtxMenu(null)
+    const insertAt = ctxPosition === -1 ? sorted.length : ctxPosition
+
+    // Shift all waypoints at or after the insert position to make room
+    if (insertAt < sorted.length) {
+      const toShift = waypoints.filter(w => w.order >= insertAt)
+      await Promise.all(toShift.map(w =>
+        fetch(`/api/trips/${id}/waypoints/${w.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: w.order + 1 }),
+        })
+      ))
+      setWaypoints(prev => prev.map(w => w.order >= insertAt ? { ...w, order: w.order + 1 } : w))
+    }
+
+    const res = await fetch(`/api/trips/${id}/waypoints`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat: ctxMenu.lat, lng: ctxMenu.lng, name, order: insertAt }),
+    })
+    const wp: Waypoint = await res.json()
+    setWaypoints(prev => [...prev, wp])
+    setCtxMenu(null); setCtxName(''); setCtxPosition(-1)
     setTab('stops')
   }
 
@@ -830,14 +851,14 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
           {/* Right-click context menu */}
           {ctxMenu && (
             <div
-              className="absolute z-[1001] bg-white rounded-xl shadow-xl border border-stone-200 py-1.5 min-w-[190px]"
-              style={{ left: Math.min(ctxMenu.x, (mapRef.current?.clientWidth ?? 400) - 200), top: Math.min(ctxMenu.y, (mapRef.current?.clientHeight ?? 400) - 160) }}
+              className="absolute z-[1001] bg-white rounded-xl shadow-xl border border-stone-200 py-1.5 min-w-[210px]"
+              style={{ left: Math.min(ctxMenu.x, (mapRef.current?.clientWidth ?? 400) - 220), top: Math.min(ctxMenu.y, (mapRef.current?.clientHeight ?? 400) - 240) }}
             >
               <p className="px-4 py-1 text-xs text-stone-400 font-mono">
                 {ctxMenu.lat.toFixed(4)}, {ctxMenu.lng.toFixed(4)}
               </p>
               <div className="border-t border-stone-100 mt-1 pt-1">
-                <div className="px-3 py-1">
+                <div className="px-3 py-1 space-y-1.5">
                   <input
                     className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-forest-400"
                     placeholder="Stop name…"
@@ -846,6 +867,20 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
                     onKeyDown={e => e.key === 'Enter' && addCtxStop()}
                     autoFocus
                   />
+                  {sorted.length > 0 && (
+                    <select
+                      value={ctxPosition === -1 ? sorted.length : ctxPosition}
+                      onChange={e => setCtxPosition(Number(e.target.value))}
+                      className="w-full text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white text-stone-700 focus:outline-none focus:border-forest-400"
+                    >
+                      <option value={0}>↑ Before #{1} {sorted[0]?.name}</option>
+                      {sorted.map((wp, i) => (
+                        <option key={wp.id} value={i + 1}>
+                          ↓ After #{i + 1} {wp.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <button onClick={addCtxStop}
                   className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-forest-50 hover:text-forest-700 font-medium flex items-center gap-2">
