@@ -111,6 +111,7 @@ export interface Waypoint {
   lat: number
   lng: number
   type: WaypointType
+  secondaryType?: WaypointType | null
   notes: string
   order: number
   googleMapsUrl: string

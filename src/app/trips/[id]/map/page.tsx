@@ -26,7 +26,7 @@ function navLinks(lat: number, lng: number, name: string) {
   }
 }
 
-function markerHtml(icon: string, color: string, num: number, dayLabel?: string, nights?: number) {
+function markerHtml(icon: string, color: string, num: number, dayLabel?: string, nights?: number, secondaryIcon?: string, secondaryColor?: string) {
   const subLabel = [
     dayLabel,
     nights !== undefined ? (nights === 0 ? 'transit' : `${nights}🌙`) : undefined,
@@ -41,6 +41,10 @@ function markerHtml(icon: string, color: string, num: number, dayLabel?: string,
       font-size:10px;font-weight:700;width:16px;height:16px;border-radius:50%;
       border:1.5px solid ${color};display:flex;align-items:center;justify-content:center;
       box-shadow:0 1px 3px rgba(0,0,0,.2);">${num}</div>
+    ${secondaryIcon ? `<div style="position:absolute;bottom:-4px;left:-6px;background:${secondaryColor || '#666'};
+      border:2px solid white;width:16px;height:16px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;font-size:9px;line-height:1;
+      box-shadow:0 1px 3px rgba(0,0,0,.25);">${secondaryIcon}</div>` : ''}
     ${subLabel ? `<div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
       background:rgba(30,30,30,.8);color:white;font-size:9px;font-weight:600;
       padding:1px 5px;border-radius:3px;white-space:nowrap;pointer-events:none">${subLabel}</div>` : ''}
@@ -262,6 +266,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
 
       sorted.forEach((wp, idx) => {
         const t = typeFor(wp.type)
+        const t2 = wp.secondaryType ? typeFor(wp.secondaryType) : null
         const dayLabel = dates[idx]
           ? dates[idx].split(' ').slice(0, 2).join(' ')  // "Mon 16 Jun" → "Mon 16"
           : undefined
@@ -269,7 +274,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
         const hasSubLabel = !!(dayLabel || nights !== undefined)
         const icon = L.divIcon({
           className: '',
-          html: markerHtml(t.icon, t.color, idx + 1, dayLabel, nights),
+          html: markerHtml(t.icon, t.color, idx + 1, dayLabel, nights, t2?.icon, t2?.color),
           iconSize: [36, hasSubLabel ? 56 : 42],
           iconAnchor: [18, hasSubLabel ? 56 : 42],
           popupAnchor: [0, hasSubLabel ? -58 : -44],
@@ -280,7 +285,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
           .bindPopup(`
             <div style="min-width:160px">
               <strong style="font-size:13px">${wp.name}</strong><br>
-              <span style="font-size:11px;color:#6b7280">${t.icon} ${t.label}</span>
+              <span style="font-size:11px;color:#6b7280">${t.icon} ${t.label}${t2 ? ` · ${t2.icon} ${t2.label}` : ''}</span>
               ${dates[idx] ? `<br><span style="font-size:11px;color:#15803d">📅 ${dates[idx]}</span>` : ''}
               <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
                 <a href="${nav.google}" target="_blank" style="font-size:11px;padding:3px 8px;background:#4285f4;color:white;border-radius:4px;text-decoration:none">Google Maps</a>
@@ -575,11 +580,28 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
                                   <button onClick={() => panTo(wp)}
                                     className="text-sm font-medium text-stone-800 text-left hover:text-forest-700 truncate w-full">{wp.name}</button>
                                 )}
-                                <select value={wp.type}
-                                  onChange={e => updateWaypoint(wp.id, { type: e.target.value as WaypointType })}
-                                  className="mt-0.5 text-xs border-0 bg-transparent text-stone-400 cursor-pointer focus:outline-none">
-                                  {TYPES.map(tp => <option key={tp.value} value={tp.value}>{tp.icon} {tp.label}</option>)}
-                                </select>
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <select value={wp.type}
+                                    onChange={e => updateWaypoint(wp.id, { type: e.target.value as WaypointType })}
+                                    className="mt-0.5 text-xs border-0 bg-transparent text-stone-400 cursor-pointer focus:outline-none">
+                                    {TYPES.map(tp => <option key={tp.value} value={tp.value}>{tp.icon} {tp.label}</option>)}
+                                  </select>
+                                  {wp.secondaryType ? (
+                                    <>
+                                      <span className="text-stone-300 text-xs mt-0.5">+</span>
+                                      <select value={wp.secondaryType}
+                                        onChange={e => updateWaypoint(wp.id, { secondaryType: e.target.value as WaypointType })}
+                                        className="mt-0.5 text-xs border-0 bg-transparent text-stone-400 cursor-pointer focus:outline-none">
+                                        {TYPES.map(tp => <option key={tp.value} value={tp.value}>{tp.icon} {tp.label}</option>)}
+                                      </select>
+                                      <button onClick={() => updateWaypoint(wp.id, { secondaryType: null })}
+                                        className="mt-0.5 text-stone-300 hover:text-red-400 text-xs leading-none">×</button>
+                                    </>
+                                  ) : (
+                                    <button onClick={() => updateWaypoint(wp.id, { secondaryType: wp.type === 'campsite' ? 'fuel' : 'campsite' })}
+                                      className="mt-0.5 text-xs text-stone-300 hover:text-stone-500 leading-none">+ also</button>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-1.5 mt-1">
                                   <span className="text-xs text-stone-400">Nights:</span>
                                   <button onClick={() => updateWaypoint(wp.id, { nights: Math.max(0, nights - 1) })}
