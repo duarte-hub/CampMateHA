@@ -72,7 +72,7 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
 
   const [waypoints,      setWaypoints]      = useState<Waypoint[]>([])
   const [tripStart,      setTripStart]      = useState('')
-  const [tab,            setTab]            = useState<'stops' | 'fuel' | 'import'>('stops')
+  const [tab,            setTab]            = useState<'stops' | 'fuel' | 'import' | 'export'>('stops')
   const [vehicle,        setVehicleConfig]  = useState<VehicleConfig | null>(null)
   const [editingId,      setEditingId]      = useState<string | null>(null)
   const [editName,       setEditName]       = useState('')
@@ -467,10 +467,10 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
         <div className={`shrink-0 flex flex-col border-r border-stone-200 bg-white overflow-hidden transition-all duration-200 ${panelCollapsed ? 'w-0' : 'w-72'}`}>
           {/* Tabs */}
           <div className="flex border-b border-stone-200 text-xs font-semibold">
-            {(['stops', 'fuel', 'import'] as const).map(t => (
+            {(['stops', 'fuel', 'import', 'export'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)}
                 className={`flex-1 py-2 transition-colors ${tab === t ? 'bg-forest-50 text-forest-700 border-b-2 border-forest-600' : 'text-stone-500 hover:text-stone-700'}`}>
-                {t === 'stops' ? `📍 ${waypoints.length}` : t === 'fuel' ? '⛽' : '⬇'}
+                {t === 'stops' ? `📍 ${waypoints.length}` : t === 'fuel' ? '⛽' : t === 'import' ? '⬇' : '⬆'}
               </button>
             ))}
           </div>
@@ -655,6 +655,60 @@ export default function MapPage({ params }: { params: Promise<{ id: string }> })
                   </>
                 )
               })()}
+            </div>
+          )}
+
+          {/* Export tab */}
+          {tab === 'export' && (
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <h3 className="font-semibold text-stone-800 text-sm">Export stops</h3>
+              {sorted.length === 0 ? (
+                <p className="text-xs text-stone-400">No stops to export yet.</p>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      const rows = [
+                        ['Order', 'Name', 'Type', 'Lat', 'Lng', 'Nights', 'Notes'],
+                        ...sorted.map((wp, i) => [
+                          i + 1, wp.name, wp.type,
+                          wp.lat.toFixed(6), wp.lng.toFixed(6),
+                          wp.nights ?? 0, wp.notes ?? '',
+                        ]),
+                      ]
+                      const csv = rows.map(r =>
+                        r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+                      ).join('\n')
+                      const a = Object.assign(document.createElement('a'), {
+                        href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+                        download: 'campmate-route.csv',
+                      })
+                      a.click(); URL.revokeObjectURL(a.href)
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 transition-colors text-left"
+                  >
+                    <span className="text-2xl">📄</span>
+                    <div>
+                      <p className="text-sm font-semibold text-stone-800">Download CSV</p>
+                      <p className="text-xs text-stone-400">{sorted.length} stops · name, type, lat/lng, nights</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const stops = sorted.map(wp => `${wp.lat.toFixed(6)},${wp.lng.toFixed(6)}`).join('/')
+                      window.open(`https://www.google.com/maps/dir/${stops}`, '_blank')
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 transition-colors text-left"
+                  >
+                    <span className="text-2xl">🗺️</span>
+                    <div>
+                      <p className="text-sm font-semibold text-stone-800">Open in Google Maps</p>
+                      <p className="text-xs text-stone-400">Multi-stop directions route</p>
+                    </div>
+                  </button>
+                </>
+              )}
             </div>
           )}
 
