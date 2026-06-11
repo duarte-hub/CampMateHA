@@ -28,6 +28,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [loadingLib, setLoadingLib] = useState(false)
   const [libMsg, setLibMsg] = useState('')
   const [showReminders, setShowReminders] = useState(false)
+  const [hidePast,      setHidePast]      = useState(false)
   // Bookings
   const [addingBookingDayId,  setAddingBookingDayId]  = useState<string | null>(null)
   const [bkName,              setBkName]              = useState('')
@@ -252,11 +253,17 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
         const allBookings = trip.bookings ?? []
         const totalBookingCost = allBookings.reduce((s, b) => s + b.cost, 0)
         const confirmedCount = allBookings.filter(b => b.booked).length
+        const d = new Date()
+        const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+        const pastCount = trip.itinerary.filter(day => day.date < today).length
+        const visibleDays = trip.itinerary
+          .sort((a, b) => a.dayNumber - b.dayNumber)
+          .filter(day => !hidePast || day.date >= today)
         return (
           <div className="space-y-3">
             {/* Summary strip */}
             {trip.itinerary.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap items-center">
                 <div className="card px-3 py-2 flex items-center gap-1.5">
                   <span className="text-sm font-bold text-stone-800 dark:text-stone-200">{trip.itinerary.length}</span>
                   <span className="text-xs text-stone-500 dark:text-stone-400">days</span>
@@ -276,24 +283,40 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
                     <span className="text-xs text-stone-500 dark:text-stone-400">in bookings</span>
                   </div>
                 )}
+                {pastCount > 0 && (
+                  <button
+                    onClick={() => setHidePast(h => !h)}
+                    className={`ml-auto text-xs px-3 py-2 rounded-xl font-medium transition-colors ${hidePast ? 'bg-forest-600 dark:bg-forest-700 text-white' : 'card text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'}`}
+                  >
+                    {hidePast ? `Show all (${pastCount} past)` : `Hide past`}
+                  </button>
+                )}
               </div>
             )}
 
-            {trip.itinerary.sort((a, b) => a.dayNumber - b.dayNumber).map(day => {
+            {visibleDays.map(day => {
+              const isToday = day.date === today
+              const isPast  = day.date < today
               const dayBookings = allBookings.filter(b => b.dayId === day.id)
               const dayBookingCost = dayBookings.reduce((s, b) => s + b.cost, 0)
               const isAdding = addingBookingDayId === day.id
               return (
-                <div key={day.id} className="card overflow-hidden" style={{ borderLeftColor: dayBorder(day.summary), borderLeftWidth: 3 }}>
+                <div key={day.id} className={`card overflow-hidden transition-opacity ${isPast ? 'opacity-50' : ''}`}
+                  style={{ borderLeftColor: isToday ? '#16a34a' : dayBorder(day.summary), borderLeftWidth: isToday ? 4 : 3 }}>
                   {/* Day header */}
-                  <div className="px-4 py-3 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-100 dark:border-stone-700">
+                  <div className={`px-4 py-3 border-b border-stone-100 dark:border-stone-700 ${isToday ? 'bg-forest-50 dark:bg-forest-900/30' : 'bg-stone-50 dark:bg-stone-800/60'}`}>
                     <div className="flex items-center gap-2.5">
                       <span className="text-xl">{dayIcon(day.summary)}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-stone-800 dark:text-stone-100 leading-snug">{day.summary}</p>
+                        <p className={`font-bold leading-snug ${isToday ? 'text-forest-800 dark:text-forest-200' : 'text-stone-800 dark:text-stone-100'}`}>{day.summary}</p>
                         <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{fmtDate(day.date)}</p>
                       </div>
                       <div className="shrink-0 flex items-center gap-2">
+                        {isToday && (
+                          <span className="text-xs font-bold text-white bg-forest-600 dark:bg-forest-500 px-2 py-0.5 rounded-full">
+                            Today
+                          </span>
+                        )}
                         {dayBookingCost > 0 && (
                           <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
                             💰 ${dayBookingCost.toLocaleString()}
