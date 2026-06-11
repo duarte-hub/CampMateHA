@@ -255,18 +255,18 @@ export function generateItinerary(trip: Trip): ItineraryDay[] {
 
     if (primary === 'fishing') {
       summary = `Fishing day trip to ${trip.destination}`
-      activities = ['Depart early — morning bite is best', 'Check tide & spot conditions', 'Morning fishing session', 'Packed lunch at the water', 'Afternoon fishing or explore', 'Pack up and head home']
+      activities = ['Check tide & spot conditions', 'Morning fishing session', 'Afternoon fishing', 'Pack up and head home']
     } else if (primary === 'hiking') {
       summary = `Day hike at ${trip.destination}`
-      activities = ['Early departure — beat the heat', 'Check trail conditions & weather', 'Morning hike (bring plenty of water)', 'Lunch at a viewpoint or trailhead', 'Afternoon: easier walk or head back', 'Return home']
+      activities = ['Check trail conditions & weather', 'Morning hike', 'Afternoon: easier walk or head back', 'Return home']
     } else if (primary === 'beach' || primary === 'swimming') {
       summary = `Beach day at ${trip.destination}`
-      activities = ['Depart early to get a good spot', 'Swim, surf, or explore the beach', 'Packed lunch on the sand', 'Afternoon beach activities', 'Rinse off and pack up', 'Return home']
+      activities = ['Swim, surf, or explore the beach', 'Afternoon beach activities', 'Return home']
     } else if (primary === '4wd') {
       summary = `4WD day trip to ${trip.destination}`
-      activities = ['Lower tyre pressures before hitting tracks', 'Check track conditions & fuel level', 'Morning 4WD exploration', 'Lunch at a scenic stop', 'Afternoon tracks or head back', 'Re-inflate tyres on sealed road']
+      activities = ['Lower tyre pressures before hitting tracks', 'Check track conditions & fuel level', 'Morning 4WD exploration', 'Afternoon tracks or head back', 'Re-inflate tyres on sealed road']
     } else {
-      activities = ['Depart in the morning', `Arrive at ${trip.destination}`, 'Explore and enjoy activities', 'Packed lunch or find a café', 'Afternoon activities', 'Pack up and return home']
+      activities = [`Arrive at ${trip.destination}`, 'Explore and enjoy', 'Return home']
     }
 
     days.push({ id: uid(), tripId: trip.id, date: trip.startDate, dayNumber: 1, summary, activities, notes: `Depart: ${formatDate(trip.startDate)}` })
@@ -283,21 +283,16 @@ export function generateItinerary(trip: Trip): ItineraryDay[] {
       summary = `Departure — drive to ${trip.destination} and set up camp`
       activities = [
         'Final gear & vehicle check',
-        'Depart early to beat traffic',
-        `Arrive ${trip.destination}`,
-        'Set up camp before dark',
-        'Quick & easy first-night dinner',
-        'Settle in and relax',
+        `Drive to ${trip.destination}`,
+        'Set up camp / check in',
       ]
     } else if (i === nights) {
-      summary = `Pack-down day — clean camp and head home`
+      summary = `Pack-down day — return home`
       activities = [
-        'Early breakfast',
-        'Pack down camp systematically',
+        'Pack down camp',
         'Leave site clean — pack in, pack out',
         'Final vehicle check',
         'Depart for home',
-        'Fuel stop & debrief on the road',
       ]
     } else {
       const primary = acts[(i - 1) % Math.max(acts.length, 1)]
@@ -306,70 +301,44 @@ export function generateItinerary(trip: Trip): ItineraryDay[] {
         activities = [
           'Early morning fishing session',
           'Check tide times & best spots',
-          hasBeach(trip) ? 'Midday beach walk & explore' : 'Lunch at camp',
-          'Afternoon fishing or river swim',
-          'Cook catch of the day for dinner',
-          hasFire ? 'Campfire and star gazing' : 'Relax and unwind at camp',
+          'Afternoon fishing',
         ]
       } else if (primary === 'hiking') {
-        summary = `Hiking day — explore the trails around ${trip.destination}`
+        summary = `Hiking day around ${trip.destination}`
         activities = [
-          'Early breakfast, pack day bags',
           'Morning hike (check trail conditions first)',
-          'Lunch on trail or at a viewpoint',
           'Afternoon: easier walk or rest at camp',
-          'Hot wash and freshen up',
-          hasFire ? 'Campfire evening' : 'Cook dinner & relax',
         ]
       } else if (primary === 'beach' || primary === 'swimming') {
         summary = `Beach day at ${trip.destination}`
         activities = [
-          'Early beach walk at low tide',
-          'Check surf conditions & tide chart',
-          'Swim, snorkel, or fish the beach',
-          'Beach picnic lunch',
-          'Afternoon explore — different spot',
-          'Rinse off, cook dinner, stories at camp',
+          'Beach walk at low tide',
+          'Swim, snorkel, or surf',
+          'Afternoon explore',
         ]
       } else if (primary === '4wd') {
         summary = `4WD exploration around ${trip.destination}`
         activities = [
           'Lower tyre pressures (20–25 PSI for tracks)',
-          'Morning: choose & check track conditions',
           'Explore 4WD tracks — stay on marked routes',
-          'Lunch at a scenic stop on the track',
-          'Afternoon: easier tracks or return to camp',
           'Re-inflate tyres on sealed road return',
         ]
       } else if (primary === 'campfire') {
-        summary = `Slow day — relaxed camp activities at ${trip.destination}`
+        summary = `Slow day at ${trip.destination}`
         activities = [
-          'Slow morning coffee & sunrise',
-          'Short walk or camp explore',
-          'Camp cooking lunch together',
-          'Afternoon: read, nap, card games',
-          'Start campfire in late afternoon',
-          'Slow-cook over the fire for dinner, long evening',
+          `Explore ${trip.destination}`,
         ]
       } else if (primary === 'kayaking') {
-        summary = `Kayaking & water activities at ${trip.destination}`
+        summary = `Kayaking at ${trip.destination}`
         activities = [
           'Check water conditions & weather',
           'Morning kayak session',
-          'Lunch at camp or a riverbank',
           'Afternoon paddle or rest',
-          'Cook dinner',
-          hasFire ? 'Campfire & stories' : 'Relax and star gaze',
         ]
       } else {
         summary = `Full day at ${trip.destination}`
         activities = [
-          'Breakfast at camp',
           `Explore ${trip.destination}`,
-          'Picnic lunch',
-          'Afternoon activities',
-          'Cook dinner',
-          hasFire ? 'Campfire evening' : 'Relax',
         ]
       }
     }
@@ -694,17 +663,17 @@ export function generateItineraryFromWaypoints(trip: Trip, waypoints: Waypoint[]
 
       if (isArrival && i === 0) {
         summary = `Depart — drive to ${wp.name}`
-        activities = ['Final gear & vehicle check', 'Early departure', `Drive to ${wp.name}`, `Arrive ${wp.name}`, 'Set up camp / check in', 'Easy first-night dinner']
+        activities = ['Final gear & vehicle check', `Drive to ${wp.name}`, 'Set up camp / check in']
       } else if (isArrival) {
         summary = `Drive from ${prev.name} to ${wp.name}`
-        activities = [`Pack up at ${prev.name}`, 'Quick breakfast before leaving', `Drive to ${wp.name}`, `Arrive ${wp.name}`, 'Set up / check in', 'Relax and explore']
+        activities = [`Pack up at ${prev.name}`, `Drive to ${wp.name}`, 'Set up / check in']
       } else if (isLastNight && hasNext) {
         summary = `Last day at ${wp.name} — prepare to move on`
-        activities = ['Morning activity', `Explore ${wp.name}`, 'Pack non-essentials', `Prepare for drive to ${stops[i + 1].name} tomorrow`, 'Dinner at camp', hasFire ? 'Final campfire' : 'Early night']
+        activities = [`Explore ${wp.name}`, `Prepare for drive to ${stops[i + 1].name} tomorrow`]
       } else {
         const act = trip.activities[(n - 1) % Math.max(trip.activities.length, 1)]
         summary = buildDaySummary(wp, act)
-        activities = buildDayActivities(wp, act, hasFire)
+        activities = buildDayActivities(wp, act)
       }
 
       days.push({ id: uid(), tripId: trip.id, date, dayNumber: dayNum++, summary, activities, notes: isArrival ? `Arrive: ${wp.name}` : '' })
@@ -717,7 +686,7 @@ export function generateItineraryFromWaypoints(trip: Trip, waypoints: Waypoint[]
   days.push({
     id: uid(), tripId: trip.id, date, dayNumber: dayNum,
     summary: `Pack down at ${last.name} — return home`,
-    activities: ['Early breakfast', 'Pack down camp systematically', 'Leave site clean — pack in, pack out', 'Final vehicle check', 'Depart for home', 'Fuel stop & debrief on the road'],
+    activities: ['Pack down camp', 'Leave site clean — pack in, pack out', 'Final vehicle check', 'Depart for home'],
     notes: `Return from ${last.name}`,
   })
 
@@ -733,18 +702,18 @@ function buildDaySummary(wp: Waypoint, act: string | undefined): string {
   return `Full day at ${wp.name}`
 }
 
-function buildDayActivities(wp: Waypoint, act: string | undefined, hasFire: boolean): string[] {
+function buildDayActivities(wp: Waypoint, act: string | undefined): string[] {
   if (act === 'fishing' || wp.type === 'fishing') {
-    return ['Early morning fishing session', 'Check tide & spot conditions', 'Lunch at camp or waterside', 'Afternoon fishing', 'Cook catch of the day for dinner', hasFire ? 'Campfire evening' : 'Relax at camp']
+    return ['Early morning fishing session', 'Check tide & spot conditions', 'Afternoon fishing']
   }
   if (act === 'hiking') {
-    return ['Early breakfast, pack day bags', 'Morning hike (check conditions first)', 'Lunch on trail or at viewpoint', 'Afternoon walk or rest at camp', 'Hot wash and freshen up', hasFire ? 'Campfire evening' : 'Cook dinner & relax']
+    return ['Morning hike (check conditions first)', 'Afternoon walk or rest at camp']
   }
   if (act === 'beach' || act === 'swimming') {
-    return ['Early beach walk at low tide', 'Swim, snorkel, or surf', 'Beach picnic lunch', 'Afternoon explore', 'Rinse off', 'Dinner at camp']
+    return ['Beach walk at low tide', 'Swim, snorkel, or surf', 'Afternoon explore']
   }
   if (act === '4wd') {
-    return ['Lower tyre pressures (20–25 PSI)', 'Morning 4WD tracks', 'Lunch at a scenic stop', 'Afternoon tracks or explore', 'Re-inflate tyres on return', 'Camp dinner']
+    return ['Lower tyre pressures (20–25 PSI for tracks)', 'Morning 4WD tracks', 'Afternoon tracks or explore', 'Re-inflate tyres on sealed road']
   }
-  return ['Slow morning coffee', `Explore ${wp.name}`, 'Lunch', 'Afternoon activities', 'Cook dinner', hasFire ? 'Campfire evening' : 'Relax and unwind']
+  return [`Explore ${wp.name}`]
 }
