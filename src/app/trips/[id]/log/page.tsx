@@ -12,10 +12,14 @@ function fmt(ts: string) {
 export default function LogPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
 
-  const [entries,    setEntries]    = useState<FuelEntry[]>([])
-  const [locating,   setLocating]   = useState(false)
-  const [saving,     setSaving]     = useState(false)
-  const [geoError,   setGeoError]   = useState('')
+  const [entries,         setEntries]         = useState<FuelEntry[]>([])
+  const [locating,        setLocating]        = useState(false)
+  const [saving,          setSaving]          = useState(false)
+  const [geoError,        setGeoError]        = useState('')
+  // Pressures — loaded from trip, saved on blur
+  const [tyreFront,       setTyreFront]       = useState('')
+  const [tyreRear,        setTyreRear]        = useState('')
+  const [airbagRear,      setAirbagRear]      = useState('')
 
   // Form state
   const [litres,     setLitres]     = useState('')
@@ -30,7 +34,20 @@ export default function LogPage({ params }: { params: Promise<{ id: string }> })
 
   useEffect(() => {
     reload()
+    fetch(`/api/trips/${id}`).then(r => r.json()).then(t => {
+      if (t.tyrePressureFront)  setTyreFront(String(t.tyrePressureFront))
+      if (t.tyrePressureRear)   setTyreRear(String(t.tyrePressureRear))
+      if (t.airbagPressureRear) setAirbagRear(String(t.airbagPressureRear))
+    })
   }, [id])
+
+  function savePressure(field: string, value: string) {
+    const num = parseFloat(value)
+    fetch(`/api/trips/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: num || null }),
+    })
+  }
 
   function reload() {
     fetch(`/api/trips/${id}/fuel-log`).then(r => r.json()).then(setEntries)
@@ -115,6 +132,31 @@ export default function LogPage({ params }: { params: Promise<{ id: string }> })
           ))}
         </div>
       )}
+
+      {/* Pressures */}
+      <div className="card p-4 space-y-3">
+        <h2 className="font-bold text-stone-800 dark:text-stone-100 text-sm">🔧 Pressures</h2>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Tyre front', value: tyreFront,  setter: setTyreFront,  field: 'tyrePressureFront' },
+            { label: 'Tyre rear',  value: tyreRear,   setter: setTyreRear,   field: 'tyrePressureRear' },
+            { label: 'Airbag rear', value: airbagRear, setter: setAirbagRear, field: 'airbagPressureRear' },
+          ].map(({ label, value, setter, field }) => (
+            <div key={field} className="space-y-1">
+              <label className="label text-xs">{label}</label>
+              <input
+                type="number" min={0} step={1} inputMode="decimal"
+                className="input text-sm text-center font-semibold"
+                placeholder="—"
+                value={value}
+                onChange={e => setter(e.target.value)}
+                onBlur={e => savePressure(field, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-stone-400 dark:text-stone-500">Enter in your preferred unit (PSI or kPa) — saved per trip</p>
+      </div>
 
       {/* Add entry form */}
       <div className="card p-5 space-y-4">

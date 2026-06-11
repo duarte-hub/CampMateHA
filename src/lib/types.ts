@@ -21,6 +21,9 @@ export interface Trip {
   heroColor?: string
   heroImage?: string
   campsiteRatePerNight?: number
+  tyrePressureFront?: number
+  tyrePressureRear?: number
+  airbagPressureRear?: number
   createdAt: string
   updatedAt: string
 }
