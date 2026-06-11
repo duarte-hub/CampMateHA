@@ -27,8 +27,11 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [newCategory, setNewCategory] = useState('Custom')
   const [loadingLib, setLoadingLib] = useState(false)
   const [libMsg, setLibMsg] = useState('')
-  const [showReminders, setShowReminders] = useState(false)
-  const [hidePast,      setHidePast]      = useState(false)
+  const [showReminders,        setShowReminders]        = useState(false)
+  const [hidePast,             setHidePast]             = useState(false)
+  // Itinerary items
+  const [addingActivityDayId,  setAddingActivityDayId]  = useState<string | null>(null)
+  const [newActivity,          setNewActivity]          = useState('')
   // Bookings
   const [addingBookingDayId,  setAddingBookingDayId]  = useState<string | null>(null)
   const [bkName,              setBkName]              = useState('')
@@ -330,35 +333,79 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
                   </div>
 
                   {/* Activities */}
-                  {(day.activities.length > 0 || day.notes) && (
-                    <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700">
-                      {day.activities.length > 0 && (
-                        <div className="ml-1 pl-3 border-l-2 border-stone-200 dark:border-stone-700 space-y-1">
-                          {day.activities.map((a, i) => (
-                            <div key={i} className="flex items-start gap-1.5 group">
-                              <p className="text-sm text-stone-600 dark:text-stone-400 flex-1">{a}</p>
-                              <button
-                                onClick={async () => {
-                                  const updated = day.activities.filter((_, j) => j !== i)
-                                  await fetch(`/api/trips/${id}/itinerary/${day.id}`, {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ activities: updated }),
-                                  })
-                                  setTrip(t => t ? {
-                                    ...t,
-                                    itinerary: t.itinerary.map(d => d.id === day.id ? { ...d, activities: updated } : d),
-                                  } : t)
-                                }}
-                                className="opacity-0 group-hover:opacity-100 text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-all shrink-0 mt-0.5"
-                              >✕</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {day.notes && <p className={`text-xs text-stone-400 dark:text-stone-500 italic ${day.activities.length > 0 ? 'mt-2' : ''}`}>{day.notes}</p>}
-                    </div>
-                  )}
+                  <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-700">
+                    {day.activities.length > 0 && (
+                      <div className="ml-1 pl-3 border-l-2 border-stone-200 dark:border-stone-700 space-y-1 mb-2">
+                        {day.activities.map((a, i) => (
+                          <div key={i} className="flex items-start gap-1.5 group">
+                            <p className="text-sm text-stone-600 dark:text-stone-400 flex-1">{a}</p>
+                            <button
+                              onClick={async () => {
+                                const updated = day.activities.filter((_, j) => j !== i)
+                                await fetch(`/api/trips/${id}/itinerary/${day.id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ activities: updated }),
+                                })
+                                setTrip(t => t ? {
+                                  ...t,
+                                  itinerary: t.itinerary.map(d => d.id === day.id ? { ...d, activities: updated } : d),
+                                } : t)
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-stone-300 dark:text-stone-600 hover:text-red-500 dark:hover:text-red-400 transition-all shrink-0 mt-0.5"
+                            >✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {day.notes && <p className="text-xs text-stone-400 dark:text-stone-500 italic mb-2">{day.notes}</p>}
+                    {/* Add item */}
+                    {addingActivityDayId === day.id ? (
+                      <div className="flex gap-2 mt-1">
+                        <input
+                          className="input text-sm flex-1"
+                          placeholder="Add item…"
+                          autoFocus
+                          value={newActivity}
+                          onChange={e => setNewActivity(e.target.value)}
+                          onKeyDown={async e => {
+                            if (e.key === 'Escape') { setAddingActivityDayId(null); setNewActivity('') }
+                            if (e.key === 'Enter' && newActivity.trim()) {
+                              const updated = [...day.activities, newActivity.trim()]
+                              await fetch(`/api/trips/${id}/itinerary/${day.id}`, {
+                                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ activities: updated }),
+                              })
+                              setTrip(t => t ? { ...t, itinerary: t.itinerary.map(d => d.id === day.id ? { ...d, activities: updated } : d) } : t)
+                              setNewActivity('')
+                            }
+                          }}
+                          onBlur={() => { if (!newActivity.trim()) { setAddingActivityDayId(null) } }}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!newActivity.trim()) return
+                            const updated = [...day.activities, newActivity.trim()]
+                            await fetch(`/api/trips/${id}/itinerary/${day.id}`, {
+                              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ activities: updated }),
+                            })
+                            setTrip(t => t ? { ...t, itinerary: t.itinerary.map(d => d.id === day.id ? { ...d, activities: updated } : d) } : t)
+                            setNewActivity('')
+                          }}
+                          className="btn-primary text-xs px-3 py-1.5"
+                        >Add</button>
+                        <button onClick={() => { setAddingActivityDayId(null); setNewActivity('') }}
+                          className="text-xs text-stone-400 hover:text-stone-600 px-2">Cancel</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setAddingActivityDayId(day.id); setNewActivity('') }}
+                        className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:hover:text-stone-300 transition-colors">
+                        + Add item
+                      </button>
+                    )}
+                  </div>
 
                   {/* Bookings */}
                   <div className="px-4 py-3 space-y-2">

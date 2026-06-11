@@ -253,21 +253,12 @@ export function generateItinerary(trip: Trip): ItineraryDay[] {
     let summary = `Day trip to ${trip.destination}`
     let activities: string[]
 
-    if (primary === 'fishing') {
-      summary = `Fishing day trip to ${trip.destination}`
-      activities = ['Check tide & spot conditions', 'Morning fishing session', 'Afternoon fishing', 'Pack up and head home']
-    } else if (primary === 'hiking') {
-      summary = `Day hike at ${trip.destination}`
-      activities = ['Check trail conditions & weather', 'Morning hike', 'Afternoon: easier walk or head back', 'Return home']
-    } else if (primary === 'beach' || primary === 'swimming') {
-      summary = `Beach day at ${trip.destination}`
-      activities = ['Swim, surf, or explore the beach', 'Afternoon beach activities', 'Return home']
-    } else if (primary === '4wd') {
-      summary = `4WD day trip to ${trip.destination}`
-      activities = ['Lower tyre pressures before hitting tracks', 'Check track conditions & fuel level', 'Morning 4WD exploration', 'Afternoon tracks or head back', 'Re-inflate tyres on sealed road']
-    } else {
-      activities = [`Arrive at ${trip.destination}`, 'Explore and enjoy', 'Return home']
-    }
+    if (primary === 'fishing')                          summary = `Fishing day trip to ${trip.destination}`
+    else if (primary === 'hiking')                      summary = `Day hike at ${trip.destination}`
+    else if (primary === 'beach' || primary === 'swimming') summary = `Beach day at ${trip.destination}`
+    else if (primary === '4wd')                         summary = `4WD day trip to ${trip.destination}`
+    else                                                summary = `Day trip to ${trip.destination}`
+    activities = []
 
     days.push({ id: uid(), tripId: trip.id, date: trip.startDate, dayNumber: 1, summary, activities, notes: `Depart: ${formatDate(trip.startDate)}` })
     return days
@@ -281,66 +272,20 @@ export function generateItinerary(trip: Trip): ItineraryDay[] {
 
     if (i === 0) {
       summary = `Departure — drive to ${trip.destination} and set up camp`
-      activities = [
-        'Final gear & vehicle check',
-        `Drive to ${trip.destination}`,
-        'Set up camp / check in',
-      ]
+      activities = []
     } else if (i === nights) {
       summary = `Pack-down day — return home`
-      activities = [
-        'Pack down camp',
-        'Leave site clean — pack in, pack out',
-        'Final vehicle check',
-        'Depart for home',
-      ]
+      activities = []
     } else {
       const primary = acts[(i - 1) % Math.max(acts.length, 1)]
-      if (primary === 'fishing') {
-        summary = `Fishing day at ${trip.destination}`
-        activities = [
-          'Early morning fishing session',
-          'Check tide times & best spots',
-          'Afternoon fishing',
-        ]
-      } else if (primary === 'hiking') {
-        summary = `Hiking day around ${trip.destination}`
-        activities = [
-          'Morning hike (check trail conditions first)',
-          'Afternoon: easier walk or rest at camp',
-        ]
-      } else if (primary === 'beach' || primary === 'swimming') {
-        summary = `Beach day at ${trip.destination}`
-        activities = [
-          'Beach walk at low tide',
-          'Swim, snorkel, or surf',
-          'Afternoon explore',
-        ]
-      } else if (primary === '4wd') {
-        summary = `4WD exploration around ${trip.destination}`
-        activities = [
-          'Lower tyre pressures (20–25 PSI for tracks)',
-          'Explore 4WD tracks — stay on marked routes',
-          'Re-inflate tyres on sealed road return',
-        ]
-      } else if (primary === 'campfire') {
-        summary = `Slow day at ${trip.destination}`
-        activities = [
-          `Explore ${trip.destination}`,
-        ]
-      } else if (primary === 'kayaking') {
-        summary = `Kayaking at ${trip.destination}`
-        activities = [
-          'Check water conditions & weather',
-          'Morning kayak session',
-          'Afternoon paddle or rest',
-        ]
-      } else {
-        summary = `Full day at ${trip.destination}`
-        activities = [
-          `Explore ${trip.destination}`,
-        ]
-      }
+      if (primary === 'fishing')                         summary = `Fishing day at ${trip.destination}`
+      else if (primary === 'hiking')                     summary = `Hiking day around ${trip.destination}`
+      else if (primary === 'beach' || primary === 'swimming') summary = `Beach day at ${trip.destination}`
+      else if (primary === '4wd')                        summary = `4WD exploration around ${trip.destination}`
+      else if (primary === 'campfire')                   summary = `Slow day at ${trip.destination}`
+      else if (primary === 'kayaking')                   summary = `Kayaking at ${trip.destination}`
+      else                                               summary = `Full day at ${trip.destination}`
+      activities = []
     }
 
     days.push({
@@ -663,17 +608,17 @@ export function generateItineraryFromWaypoints(trip: Trip, waypoints: Waypoint[]
 
       if (isArrival && i === 0) {
         summary = `Depart — drive to ${wp.name}`
-        activities = ['Final gear & vehicle check', `Drive to ${wp.name}`, 'Set up camp / check in']
+        activities = []
       } else if (isArrival) {
         summary = `Drive from ${prev.name} to ${wp.name}`
-        activities = [`Pack up at ${prev.name}`, `Drive to ${wp.name}`, 'Set up / check in']
+        activities = []
       } else if (isLastNight && hasNext) {
         summary = `Last day at ${wp.name} — prepare to move on`
-        activities = [`Explore ${wp.name}`, `Prepare for drive to ${stops[i + 1].name} tomorrow`]
+        activities = []
       } else {
         const act = trip.activities[(n - 1) % Math.max(trip.activities.length, 1)]
         summary = buildDaySummary(wp, act)
-        activities = buildDayActivities(wp, act)
+        activities = []
       }
 
       days.push({ id: uid(), tripId: trip.id, date, dayNumber: dayNum++, summary, activities, notes: isArrival ? `Arrive: ${wp.name}` : '' })
@@ -686,7 +631,7 @@ export function generateItineraryFromWaypoints(trip: Trip, waypoints: Waypoint[]
   days.push({
     id: uid(), tripId: trip.id, date, dayNumber: dayNum,
     summary: `Pack down at ${last.name} — return home`,
-    activities: ['Pack down camp', 'Leave site clean — pack in, pack out', 'Final vehicle check', 'Depart for home'],
+    activities: [],
     notes: `Return from ${last.name}`,
   })
 
