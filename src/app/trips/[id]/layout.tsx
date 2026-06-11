@@ -76,9 +76,15 @@ export default function TripLayout({
   const [imageEditorSrc, setImageEditorSrc] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch(`/api/trips/${id}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setTrip(data) })
+    function fetchTrip() {
+      fetch(`/api/trips/${id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setTrip(data) })
+    }
+    fetchTrip()
+    // Re-fetch when the trip page saves changes (dates, title, etc.)
+    window.addEventListener('campmate-trip-updated', fetchTrip)
+    return () => window.removeEventListener('campmate-trip-updated', fetchTrip)
   }, [id])
 
   // Expose header height as a CSS variable so the map page can fill remaining viewport

@@ -29,6 +29,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [libMsg, setLibMsg] = useState('')
   const [showReminders,        setShowReminders]        = useState(false)
   const [hidePast,             setHidePast]             = useState(false)
+  const [savingDates,          setSavingDates]          = useState(false)
   // Itinerary items
   const [addingActivityDayId,  setAddingActivityDayId]  = useState<string | null>(null)
   const [newActivity,          setNewActivity]          = useState('')
@@ -172,6 +173,83 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       {/* Overview Tab */}
       {tab === 'overview' && (
         <div className="space-y-4">
+          {/* Edit trip dates / title */}
+          <div className="card p-4 space-y-3">
+            <h3 className="font-semibold text-stone-800 dark:text-stone-200 text-sm">Edit trip</h3>
+            <div className="space-y-2">
+              <div>
+                <label className="label text-xs">Title</label>
+                <input
+                  className="input text-sm w-full"
+                  defaultValue={trip.title}
+                  placeholder={trip.destination}
+                  onBlur={async e => {
+                    const val = e.target.value.trim()
+                    if (val === trip.title) return
+                    await fetch(`/api/trips/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: val }) })
+                    setTrip(t => t ? { ...t, title: val } : t)
+                    window.dispatchEvent(new Event('campmate-trip-updated'))
+                  }}
+                />
+              </div>
+              <div>
+                <label className="label text-xs">Destination</label>
+                <input
+                  className="input text-sm w-full"
+                  defaultValue={trip.destination}
+                  onBlur={async e => {
+                    const val = e.target.value.trim()
+                    if (!val || val === trip.destination) return
+                    await fetch(`/api/trips/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ destination: val }) })
+                    setTrip(t => t ? { ...t, destination: val } : t)
+                    window.dispatchEvent(new Event('campmate-trip-updated'))
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label text-xs">Start date</label>
+                  <input
+                    type="date"
+                    className="input text-sm w-full"
+                    defaultValue={trip.startDate}
+                    onBlur={async e => {
+                      const val = e.target.value
+                      if (!val || val === trip.startDate) return
+                      setSavingDates(true)
+                      const end = val > trip.endDate ? val : trip.endDate
+                      await fetch(`/api/trips/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ startDate: val, endDate: end }) })
+                      await fetch(`/api/trips/${id}/budget/regenerate`, { method: 'POST' })
+                      await load()
+                      setSavingDates(false)
+                      window.dispatchEvent(new Event('campmate-trip-updated'))
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">End date</label>
+                  <input
+                    type="date"
+                    className="input text-sm w-full"
+                    defaultValue={trip.endDate}
+                    onBlur={async e => {
+                      const val = e.target.value
+                      if (!val || val === trip.endDate) return
+                      setSavingDates(true)
+                      const start = val < trip.startDate ? val : trip.startDate
+                      await fetch(`/api/trips/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ startDate: start, endDate: val }) })
+                      await fetch(`/api/trips/${id}/budget/regenerate`, { method: 'POST' })
+                      await load()
+                      setSavingDates(false)
+                      window.dispatchEvent(new Event('campmate-trip-updated'))
+                    }}
+                  />
+                </div>
+              </div>
+              {savingDates && <p className="text-xs text-stone-400 dark:text-stone-500">Updating itinerary & budget…</p>}
+            </div>
+          </div>
+
           {/* Stats strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard icon="👥" label="People" value={`${trip.adults + trip.kids}`} sub={`${trip.adults} adults · ${trip.kids} kids`} />
