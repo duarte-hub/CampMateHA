@@ -30,6 +30,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [showReminders,        setShowReminders]        = useState(false)
   const [hidePast,             setHidePast]             = useState(false)
   const [savingDates,          setSavingDates]          = useState(false)
+  const [showEditTrip,         setShowEditTrip]         = useState(false)
   // Itinerary items
   const [addingActivityDayId,  setAddingActivityDayId]  = useState<string | null>(null)
   const [newActivity,          setNewActivity]          = useState('')
@@ -174,9 +175,15 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
       {tab === 'overview' && (
         <div className="space-y-4">
           {/* Edit trip dates / title */}
-          <div className="card p-4 space-y-3">
-            <h3 className="font-semibold text-stone-800 dark:text-stone-200 text-sm">Edit trip</h3>
-            <div className="space-y-2">
+          <div className="card overflow-hidden">
+            <button
+              onClick={() => setShowEditTrip(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors"
+            >
+              <h3 className="font-semibold text-stone-800 dark:text-stone-200 text-sm">Edit trip</h3>
+              <span className="text-stone-400 dark:text-stone-500 text-xs">{showEditTrip ? '▲' : '▼'}</span>
+            </button>
+            {showEditTrip && <div className="px-4 pb-4 space-y-2 border-t border-stone-100 dark:border-stone-700 pt-3">
               <div>
                 <label className="label text-xs">Title</label>
                 <input
@@ -247,7 +254,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
                 </div>
               </div>
               {savingDates && <p className="text-xs text-stone-400 dark:text-stone-500">Updating itinerary & budget…</p>}
-            </div>
+            </div>}
           </div>
 
           {/* Stats strip */}
