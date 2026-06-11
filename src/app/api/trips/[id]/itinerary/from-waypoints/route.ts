@@ -16,9 +16,28 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Add at least one stop with 1+ nights before building the itinerary.' }, { status: 400 })
   }
 
+  const newDays = generateItineraryFromWaypoints(trip, waypoints)
+
+  // Preserve user-added activities and booking links by reusing the existing
+  // day ID (and keeping its activities) whenever the date matches.
+  const existing = db.itineraryDays.filter(d => d.tripId === id)
+  const byDate = new Map(existing.map(d => [d.date, d]))
+
+  const merged = newDays.map(day => {
+    const prev = byDate.get(day.date)
+    if (prev) {
+      return {
+        ...day,
+        id:         prev.id,                                        // keep ID so bookings stay linked
+        activities: prev.activities.length > 0 ? prev.activities : day.activities,
+      }
+    }
+    return day
+  })
+
   db.itineraryDays = db.itineraryDays.filter(d => d.tripId !== id)
-  db.itineraryDays.push(...generateItineraryFromWaypoints(trip, waypoints))
+  db.itineraryDays.push(...merged)
   writeDb(db)
 
-  return NextResponse.json({ ok: true, days: db.itineraryDays.filter(d => d.tripId === id).length })
+  return NextResponse.json({ ok: true, days: merged.length })
 }

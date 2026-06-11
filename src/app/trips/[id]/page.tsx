@@ -49,7 +49,16 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => {
+    load().then(() => {
+      // Silently rebuild itinerary from current waypoints in the background.
+      // The API is non-destructive: it reuses existing day IDs and preserves
+      // user-added activities when dates match.
+      fetch(`/api/trips/${id}/itinerary/from-waypoints`, { method: 'POST' })
+        .then(r => r.ok ? load() : null)
+        .catch(() => {})
+    })
+  }, [id])
 
   async function togglePacking(item: PackingItem) {
     await fetch(`/api/trips/${id}/packing/${item.id}`, {
