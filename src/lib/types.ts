@@ -105,7 +105,7 @@ export interface Reminder {
   severity: ReminderSeverity
 }
 
-export type WaypointType = 'campsite' | 'fuel' | 'food' | 'fishing' | 'attraction' | 'start' | 'end' | 'custom'
+export type WaypointType = 'campsite' | 'fuel' | 'food' | 'fishing' | 'attraction' | 'water' | 'start' | 'end' | 'custom'
 
 export interface Waypoint {
   id: string

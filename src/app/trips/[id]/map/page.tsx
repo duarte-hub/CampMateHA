@@ -11,6 +11,7 @@ const TYPES: { value: WaypointType; label: string; icon: string; color: string }
   { value: 'food',       label: 'Food / Shops', icon: '🛒', color: '#d97706' },
   { value: 'fishing',    label: 'Fishing Spot', icon: '🎣', color: '#0284c7' },
   { value: 'attraction', label: 'Attraction',   icon: '📸', color: '#7c3aed' },
+  { value: 'water',      label: 'Water Top-Up', icon: '💧', color: '#0ea5e9' },
   { value: 'end',        label: 'End / Home',   icon: '🏁', color: '#9f1239' },
   { value: 'custom',     label: 'Custom Stop',  icon: '📍', color: '#6b7280' },
 ]
