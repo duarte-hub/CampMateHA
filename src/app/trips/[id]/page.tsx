@@ -27,6 +27,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
   const [newCategory, setNewCategory] = useState('Custom')
   const [loadingLib, setLoadingLib] = useState(false)
   const [libMsg, setLibMsg] = useState('')
+  const [hidePackedItems, setHidePackedItems] = useState(false)
   const [showReminders,        setShowReminders]        = useState(false)
   const [hidePast,             setHidePast]             = useState(false)
   const [savingDates,          setSavingDates]          = useState(false)
@@ -666,6 +667,16 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
             <div className="flex-1 h-1.5 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden">
               <div className="h-full bg-forest-500 rounded-full transition-all" style={{ width: `${packingPct}%` }} />
             </div>
+            <button
+              onClick={() => setHidePackedItems(h => !h)}
+              className={`shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                hidePackedItems
+                  ? 'bg-forest-600 border-forest-600 text-white dark:bg-forest-500 dark:border-forest-500'
+                  : 'border-stone-300 dark:border-stone-600 text-stone-500 dark:text-stone-400 hover:border-forest-500 dark:hover:border-forest-500'
+              }`}
+            >
+              {hidePackedItems ? 'Show packed' : 'Hide packed'}
+            </button>
           </div>
 
           {/* Items by category */}
@@ -674,7 +685,10 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
               ;(acc[item.category] ??= []).push(item)
               return acc
             }, {})
-          ).sort(([a], [b]) => a.localeCompare(b)).map(([cat, items]) => (
+          ).sort(([a], [b]) => a.localeCompare(b)).map(([cat, items]) => {
+            const visibleItems = hidePackedItems ? items.filter(i => !i.checked) : items
+            if (visibleItems.length === 0) return null
+            return (
             <div key={cat} className="card overflow-hidden">
               <div className="px-4 py-2.5 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-100 dark:border-stone-700 flex items-center justify-between">
                 <h4 className="font-semibold text-sm text-stone-700 dark:text-stone-200">{cat}</h4>
@@ -685,7 +699,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
                 }`}>{items.filter(i => i.checked).length}/{items.length}</span>
               </div>
               <div className="divide-y divide-stone-50 dark:divide-stone-800">
-                {items.map(item => (
+                {visibleItems.map(item => (
                   <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors group">
                     <button
                       onClick={() => togglePacking(item)}
@@ -717,7 +731,7 @@ export default function TripPage({ params }: { params: Promise<{ id: string }> }
                 ))}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 
